@@ -7,9 +7,6 @@ packages:
     commit: 838b064d8a59286142aa2fe14434fe7601896ddb
   extra-dep: true
 
-extra-deps:
-- cryptonite-0.22
-
 flags: {}
 extra-package-dbs: []
 nix:
