@@ -19,7 +19,7 @@ import Utils.Elaborator
 import Utils.Pretty
 import Utils.Vars
 
-import Control.Lens
+--import Control.Lens
 import Control.Monad.Except
 import Control.Monad.State
 import Data.List (nubBy)
@@ -46,7 +46,7 @@ substMetasSubs newSubs subs =
 
 
 
-
+{-
 
 -- | Given some way to get the current substitution, we can complete it with
 -- new substitutions by substituting their bound values for the new metavars.
@@ -133,7 +133,7 @@ updateSubstitutionJ subsl ctxl subs =
      substituteContextJ subsl ctxl
     
 
-
+-}
 
 
 
@@ -227,7 +227,7 @@ solve eqs0 = go eqs0 []
       throwError $ "Cannot unify " ++ pretty l ++ " and " ++ pretty r
 
 
-
+{-
 
 
 -- | Unification relative to a substitution and a context will solve the
@@ -272,3 +272,6 @@ unifyJ subsl ctxl l r =
                   "Could not unify "++ pretty l ++ " with " ++ pretty r
                     ++ ". " ++ e)
      updateSubstitutionJ subsl ctxl newSubs
+
+
+-}

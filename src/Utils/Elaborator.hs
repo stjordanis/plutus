@@ -18,7 +18,7 @@ module Utils.Elaborator where
 import Utils.ABT
 import Utils.Vars
 
-import Control.Lens
+--import Control.Lens
 import Control.Monad.State
 
 
@@ -30,7 +30,7 @@ import Control.Monad.State
 type MonadElab s m = MonadState s m
 
 
-
+{-
 
 
 -- | 'getElab' is a mnemonic for looking up the value of a lens on state.
@@ -140,7 +140,7 @@ open l sc =
 
 
 
-
+-}
 
 openScope :: (Functor f, Foldable f)
           => [(FreeVar,a)] -> Scope f -> ([FreeVar], [String], ABT f)
