@@ -24,7 +24,7 @@ import PlutusCore.EvaluatorTypes
 import PlutusCore.Term
 
 import Data.Either (isRight)
-import qualified Cardano.Crypto.Wallet as CC
+--import qualified Cardano.Crypto.Wallet as CC
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -221,6 +221,7 @@ publicKeyLength = 32
 signatureLength = 64
 chainCodeLength = 32
 
+{-
 verify :: BS.ByteString -> BS.ByteString -> BS.ByteString -> Bool
 verify key val sig = isRight $ do
   key' <- CC.xpub (BS.toStrict key)
@@ -228,3 +229,4 @@ verify key val sig = isRight $ do
   case CC.verify key' (BS.toStrict val) sig' of
     True  -> Right ()
     False -> Left ""
+-}

@@ -12,8 +12,8 @@ import PlutusCore.Term
 import Utils.ABT
 import Utils.Pretty
 
-import Crypto.Hash
-import qualified Crypto.Sign.Ed25519 as Ed25519 ()
+--import Crypto.Hash
+--import qualified Crypto.Sign.Ed25519 as Ed25519 ()
 import qualified Data.Binary as B
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BS
@@ -182,7 +182,9 @@ builtin "take" xs =
     _ ->
       Left $ "Incorrect arguments for builtin take: "
                 ++ intercalate "," (map pretty xs)
-builtin "sha2_256" xs =
+builtin "sha2_256" _ =
+  Left "Cryptography is not supported in Try Plutus, sorry. :("
+  {-
   case xs of
     [In (PrimData (PrimByteString x))] ->
       Right $ In (PrimData
@@ -192,7 +194,10 @@ builtin "sha2_256" xs =
     _ ->
       Left $ "Incorrect arguments for builtin sha2_256: "
                 ++ intercalate "," (map pretty xs)
-builtin "sha3_256" xs =
+  -}
+builtin "sha3_256" _ =
+  Left "Cryptography is not supported in Try Plutus, sorry. :("
+  {-
   case xs of
     [In (PrimData (PrimByteString x))] ->
       Right $ In (PrimData
@@ -202,6 +207,7 @@ builtin "sha3_256" xs =
     _ ->
       Left $ "Incorrect arguments for builtin sha2_256: "
                 ++ intercalate "," (map pretty xs)
+  -}
 builtin "equalsByteString" xs =
   case xs of
     [ In (PrimData (PrimByteString x))
