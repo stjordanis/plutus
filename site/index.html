@@ -1,6 +1,41 @@
+<!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
+        <style>
+            * {
+                font-family: Helvetica, sans-serif;
+                font-size: 20px;
+            }
+            
+            #header {
+                background-color: black;
+                padding: 10px;
+                color: white;
+                font-size: 50px;
+                font-weight: bold;
+            }
+            
+            #declarations {
+                width: 700px;
+                height: 150px;
+                font-family: monospace;
+            }
+            
+            #replout {
+                width: 700px;
+                height: 150px;
+                font-family: monospace;
+            }
+            
+            #expression {
+                font-family: monospace;
+            }
+        </style>
         <script src="site/jquery-3.2.0.min.js"></script>
+        <script src="site/Data.js"></script>
+        <script src="site/Term.js"></script>
+        <script src="site/CKMachine.js"></script>
         <script>
             
             $(document).ready(function () {
@@ -38,38 +73,89 @@
             });
             
             function updateREPL(data) {
-                console.log(data);
                 let val = $("#replout").val();
+                
+                if ("" !== val) {
+                    val += "\n\n------------------\n\n";
+                }
                 
                 if ("Error" === data.responseText) {
                     
-                    val += "Error:\n" + data.responseInfo + "\n\n";
+                    val += "Error when evaluating\n  " + $("#expression").val() +
+                      "\n\n" + data.responseInfo;
                     
                 } else if ("Ok" === data.responseText) {
                     
-                    val += data.responseInfo + "\n\n";
+                    //val += data.responseInfo;
+                    //val += show(eval("(" + data.responseInfo + ")"));
+                    
+                    let prog = eval("(" + data.responseInfo + ")");
+                    val += cases(prog, {
+                      Program: function (decls, expr) {
+                          return cases(evaluate(declarationsToDeclEnv(decls),expr), {
+                              
+                             Left: function (err) {
+                                 return "Error while evaluating term\n  " +
+                                          prettyPrintTerm(expr) +
+                                          "\n\n" +
+                                          err;
+                             },
+                             
+                             Right: function (res) {
+                                 return "Expression to evaluate: " +
+                                          $("#expression").val() +
+                                        "\n\nParsed term to evaluate: " +
+                                          prettyPrintTerm(expr) +
+                                          "\n\n" +
+                                          "Evaluated term: " +
+                                          prettyPrintTerm(res);
+                             }
+                              
+                          });
+                      }
+                    });
                     
                 }
                 
-                $("#replout").val(val);
+                $("#replout").val(val).scrollTop(100000);
+                $("#expression").val("");
                 
             }
             
             function replError(textStatus) {
-                console.log(textStatus);
+                $("#replout").val("REPL Error: " + textStatus);
+            }
+            
+            function loadExample1() {
+                $("#declarations").val("data Bool = { True | False }\n\nnot : Bool -> Bool {\n  not True = False ;\n  not False = True\n}")
+            }
+            
+            function declarationsToDeclEnv(decls) {
+                let denv = {};
+                
+                for (let i = 0; i < decls.length; i++) {
+                    let name = decls[i].args[0];
+                    let val = decls[i].args[1];
+                    denv[name] = val;
+                }
+                
+                return denv;
             }
             
         </script>
     </head>
     <body>
-        <h1>Try Plutus!</h1>
-        <hr/>
+        <div id="header"><img src="/site/iohk-logo.png" height="50px"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Try Plutus!</div>
+        
         <p>Declarations:</p>
-        <p><textarea id="declarations" style="width: 700px; height: 300px;"></textarea></p>
+        <p><textarea id="declarations"></textarea></p>
+        <p>
+            <button onclick="loadExample1()">Example 1</button>
+        </p>
         <hr/>
         <p>REPL:</p>
         <form id="REPL">
-            <p><textarea id="replout" style="width: 700px; height: 300px;"></textarea></p>
+            <p><textarea id="replout" readonly></textarea></p>
             <p><input id="expression" style="width: 700px;"></input></p>
         </form>
     </body>

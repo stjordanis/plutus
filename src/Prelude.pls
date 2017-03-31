@@ -642,6 +642,10 @@ maybeToEither : forall a b. a -> Maybe b -> Either a b {
 
 -- Multisig verification
 
+-- !verifySignature k dat s
+--   = verify that the owner of public key `k`
+--       was used to sign `dat` producing signature `s`
+
 verify : ByteString -> ByteString -> Maybe ByteString -> Bool {
   verify _ _ Nothing = False ;
   verify dat k (Just s) = !verifySignature k dat s
