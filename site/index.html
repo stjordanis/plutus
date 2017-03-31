@@ -17,19 +17,20 @@
             }
             
             #declarations {
-                width: 700px;
+                width: 600px;
                 height: 150px;
                 font-family: monospace;
             }
             
             #replout {
-                width: 700px;
+                width: 600px;
                 height: 150px;
                 font-family: monospace;
             }
             
             #expression {
                 font-family: monospace;
+                width: 600px;
             }
         </style>
         <script src="jquery-3.2.0.min.js"></script>
@@ -127,7 +128,11 @@
             }
             
             function loadExample1() {
-                $("#declarations").val("data Bool = { True | False }\n\nnot : Bool -> Bool {\n  not True = False ;\n  not False = True\n}")
+                $("#declarations").val("data Boolean = { True | False }\n\nnot : Boolean -> Boolean {\n  not True = False ;\n  not False = True\n}\n\n\ndata List a = { Nil | Cons a (List a) }\n\nmap : forall a b. (a -> b) -> List a -> List b {\n  map f Nil = Nil ;\n  map f (Cons x xs) = Cons (f x) (map f xs)\n}")
+            }
+            
+            function loadExample2() {
+                $("#declarations").val("data P2PKH =\n  { P2PKH ByteString ByteString }\n\n\np2pkhCheck : P2PKH -> ByteString -> Boolean {\n  \n  p2pkhCheck (P2PKH pubKey sig) tx =\n  \n    and (!equalByteString\n           (hash pubKey)\n           #1FdtUtvK5vZxwo8jzjzid5Ew)\n        \n        (!verifySignature\n           pubKey\n           tx\n           sig)\n}\n\n\nvalidator : P2PKH -> Comp Unit {\n  validator info =\n    do tx <- transactionHash\n       case p2pkhCheck tx of {\n         True -> success(UnitVal) ;\n         False -> failure\n       }\n}");
             }
             
             function declarationsToDeclEnv(decls) {
@@ -147,16 +152,19 @@
     <body>
         <div id="header"><img src="/iohk-logo.png" height="50px"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Try Plutus! (pre-alpha)</div>
         
+        <p style="font-size: 50px;">http://138.68.142.152/</p>
+        
         <p>Declarations:</p>
         <p><textarea id="declarations"></textarea></p>
         <p>
             <button onclick="loadExample1()">Example 1</button>
+            <button onclick="loadExample2()">Example 2</button>
         </p>
         <hr/>
         <p>REPL:</p>
         <form id="REPL">
             <p><textarea id="replout" readonly></textarea></p>
-            <p><input id="expression" style="width: 700px;"></input></p>
+            <p><input id="expression"></input></p>
         </form>
     </body>
 </html>
