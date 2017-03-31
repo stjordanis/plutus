@@ -132,7 +132,7 @@
             }
             
             function loadExample2() {
-                $("#declarations").val("data P2PKH =\n  { P2PKH ByteString ByteString }\n\n\np2pkhCheck : P2PKH -> ByteString -> Boolean {\n  \n  p2pkhCheck (P2PKH pubKey sig) tx =\n  \n    and (!equalByteString\n           (hash pubKey)\n           #1FdtUtvK5vZxwo8jzjzid5Ew)\n        \n        (!verifySignature\n           pubKey\n           tx\n           sig)\n}\n\n\nvalidator : P2PKH -> Comp Unit {\n  validator info =\n    do tx <- transactionHash\n       case p2pkhCheck tx of {\n         True -> success UnitVal ;\n         False -> failure\n       }\n}\n\n\nredeemer : Comp P2PKH {\n  redeemer = success (P2PKH myPubKey mySig)\n}");
+                $("#declarations").val("data P2PKH =\n  { P2PKH ByteString ByteString }\n\n\np2pkhCheck : P2PKH -> ByteString -> Boolean {\n  \n  p2pkhCheck (P2PKH pubKey sig) tx =\n  \n    and (!equalByteString\n           (hash pubKey)\n           #1FdtUtvK5vZxwo8jzjzid5Ew)\n        \n        (!verifySignature\n           pubKey\n           tx\n           sig)\n}\n\n\nvalidator : P2PKH -> Comp Unit {\n  validator info =\n    do tx <- transactionHash\n       case p2pkhCheck tx of {\n         True -> success UnitVal ;\n         False -> failure\n       }\n}\n\n\nredeemer : P2PKH {\n  redeemer = P2PKH myPubKey mySig\n}");
             }
             
             function declarationsToDeclEnv(decls) {
