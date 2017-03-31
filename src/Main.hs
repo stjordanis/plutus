@@ -104,7 +104,7 @@ siteServer fp
 
 type TryPlutusServer =
        "api" :> TryPlutusAPI
-  :<|> "site" :> TryPlutusSite
+  :<|> TryPlutusSite
 
 
 
