@@ -1,0 +1,76 @@
+<html>
+    <head>
+        <script src="site/jquery-3.2.0.min.js"></script>
+        <script>
+            
+            $(document).ready(function () {
+                $("#REPL").submit(function (ev) {
+                    ev.preventDefault();
+                    
+                    let decls = $("#declarations").val();
+                    let expr = $("#expression").val();
+                    
+                    $("#repl_input").val("");
+                    
+                    let req = {
+                        "declarations": decls,
+                        "expression": expr
+                    };
+                    
+                    $.ajax({
+                        type: "POST",
+                        url: "api/compile",
+                        data: JSON.stringify(req),
+                        dataType: "json",
+                        headers: {
+                          "Accept": "application/json",
+                          "Content-Type": "application/json"  
+                        },
+                        success: function (data, textStatus) {
+                            if ("success" === textStatus) {
+                                updateREPL(data);
+                            } else {
+                                replError(textStatus);
+                            }
+                        }
+                    });
+                });
+            });
+            
+            function updateREPL(data) {
+                console.log(data);
+                let val = $("#replout").val();
+                
+                if ("Error" === data.responseText) {
+                    
+                    val += "Error:\n" + data.responseInfo + "\n\n";
+                    
+                } else if ("Ok" === data.responseText) {
+                    
+                    val += data.responseInfo + "\n\n";
+                    
+                }
+                
+                $("#replout").val(val);
+                
+            }
+            
+            function replError(textStatus) {
+                console.log(textStatus);
+            }
+            
+        </script>
+    </head>
+    <body>
+        <h1>Try Plutus!</h1>
+        <hr/>
+        <p>Declarations:</p>
+        <p><textarea id="declarations" style="width: 700px; height: 300px;"></textarea></p>
+        <hr/>
+        <p>REPL:</p>
+        <form id="REPL">
+            <p><textarea id="replout" style="width: 700px; height: 300px;"></textarea></p>
+            <p><input id="expression" style="width: 700px;"></input></p>
+        </form>
+    </body>
+</html>
