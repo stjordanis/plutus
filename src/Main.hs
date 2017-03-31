@@ -136,6 +136,6 @@ main = do
   putStrLn $ "data file location: " ++ fp
   hSetBuffering stdout LineBuffering
   env <- getEnvironment
-  let port = maybe 8080 read $ lookup "PORT" env
+  let port = maybe 80 read $ lookup "PORT" env
   putStrLn $ "Running server on port " ++ show port ++ "..."
   run port (serve tryPlutusServer (server fp))
