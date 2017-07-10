@@ -23,6 +23,7 @@ import PlutusCore.BuiltinEvaluation
 import PlutusCore.EvaluatorTypes
 import PlutusCore.PatternMatching
 import PlutusCore.Term
+import PlutusShared.Qualified
 
 import Data.Either (isRight)
 import qualified Cardano.Crypto.Wallet as CC
@@ -36,16 +37,18 @@ import qualified Data.ByteString.Lazy as BS
 
 
 
+{-
+
 -- | Standard eager evaluation.
 
-instance Eval (Env (Sourced String) Term) Term where
+instance Eval QualifiedEnv Term where
   eval (Var v) =
     return $ Var v
   eval (In (Decname x)) =
     do env <- environment
        case lookup x env of
          Nothing -> throwError $ "Unknown constant/defined term: "
-                              ++ showSourced x
+                              ++ prettyQualifiedName x
          Just m  -> eval m
   eval (In (Let m sc)) =
     do em <- eval (instantiate0 m)
@@ -77,15 +80,19 @@ instance Eval (Env (Sourced String) Term) Term where
          In Failure -> return failureH
          In (Success m') -> eval (instantiate sc [instantiate0 m'])
          _ -> throwError $ "Cannot bind a non-computation: " ++ pretty em
-  eval (In (PrimData x)) =
-    return $ In (PrimData x)
+  eval (In (PrimInt i)) =
+    return $ In (PrimInt i)
+  eval (In (PrimFloat f)) =
+    return $ In (PrimFloat f)
+  eval (In (PrimByteString bs)) =
+    return $ In (PrimByteString bs)
   eval (In (Builtin n0 xs0)) =
     do xs' <- mapM (eval . instantiate0) xs0
        case builtin n0 xs' of
          Left err -> throwError err
          Right x -> return x
 
-
+-}
 
 
 
@@ -94,16 +101,17 @@ tick :: (Num s, MonadState s m) => m ()
 tick = modify (subtract 1)
 
 type PetrolEvaluator =
-  ReaderT (TransactionInfo,SourcedEnv) (StateT Petrol (Either String))
+  ReaderT (TransactionInfo,QualifiedEnv) (StateT Petrol (Either String))
 
-declEnvironment :: PetrolEvaluator SourcedEnv
+declEnvironment :: PetrolEvaluator QualifiedEnv
 declEnvironment = snd <$> ask
 
 signedTransaction :: PetrolEvaluator TransactionInfo
 signedTransaction = fst <$> ask
 
+{-
 instance MEval
-           (TransactionInfo,SourcedEnv)
+           (TransactionInfo,QualifiedEnv)
            String
            PetrolEvaluator
            Term where
@@ -122,7 +130,7 @@ instance MEval
            env <- declEnvironment
            case lookup x env of
              Nothing -> throwError $ "Unknown constant/defined term: "
-                                  ++ showSourced x
+                                  ++ prettyQualifiedName x
              Just m  -> return m
       go (In (Let m sc)) =
         do tick 
@@ -164,9 +172,15 @@ instance MEval
              In Failure -> return failureH
              In (Success m') -> meval (instantiate sc [instantiate0 m'])
              _ -> throwError $ "Cannot bind a non-computation: " ++ pretty em
-      go (In (PrimData x)) =
+      go (In (PrimInt i)) =
         do tick
-           return $ In (PrimData x)
+           return $ In (PrimInt i)
+      go (In (PrimFloat f)) =
+        do tick
+           return $ In (PrimFloat f)
+      go (In (PrimByteString bs)) =
+        do tick
+           return $ In (PrimByteString bs)
       go (In (Builtin n0 xs0)) =
         do tick
            xs' <- mapM (meval . instantiate0) xs0
@@ -174,14 +188,14 @@ instance MEval
              Left err -> throwError err
              Right x -> return x
       
-
+-}
 
 
 
 evaluate
-  :: TransactionInfo -> SourcedEnv -> Petrol -> Term -> Either String Term
-evaluate txinfo env ptrl m =
-  CK.evaluate txinfo env ptrl m
+  :: CK.BlockChainInfo -> QualifiedEnv -> Petrol -> Term -> Either String Term
+evaluate bci env ptrl m =
+  CK.evaluate bci env ptrl m
   {-
   let evlt = meval m :: PetrolEvaluator Term
       result = runStateT (runReaderT evlt (txinfo,env)) ptrl

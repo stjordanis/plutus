@@ -9,12 +9,12 @@
 
 -- | This module implements constructor signatures, for data declarations.
 
-module PlutusTypes.ConSig where
+module PlutusShared.ConSig where
 
 import Utils.ABT
 import Utils.Pretty (pretty)
 import Utils.Vars
-import PlutusTypes.Type
+import PlutusShared.Type
 
 import Data.List (intercalate)
 import GHC.Generics

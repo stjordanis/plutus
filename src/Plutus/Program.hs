@@ -13,8 +13,8 @@ import Utils.Names
 import Utils.Pretty
 import Utils.Vars
 import Plutus.Term
-import PlutusTypes.ConSig
-import PlutusTypes.Type
+import PlutusShared.ConSig
+import PlutusShared.Type
 
 import Data.List (intercalate)
 

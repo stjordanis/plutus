@@ -24,8 +24,8 @@ import qualified Utils.ProofDeveloper as PD
 import Utils.Vars
 import Plutus.Program
 import Plutus.Term
-import PlutusTypes.ConSig
-import PlutusTypes.Type
+import PlutusShared.ConSig
+import PlutusShared.Type
 --import qualified PlutusCore.Term as Core
 --import Elaboration.Contexts
 import Elaboration.ElabState

@@ -15,7 +15,7 @@
 -- | The types of the simply typed lambda calculus w/ non-parametric user
 -- defined types (eg Bool, Nat).
 
-module PlutusTypes.Type where
+module PlutusShared.Type where
 
 import Utils.ABT
 import Utils.Pretty

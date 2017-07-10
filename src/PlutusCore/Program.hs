@@ -12,8 +12,6 @@ module PlutusCore.Program where
 import Utils.Pretty
 import Utils.Names
 import PlutusCore.Term
-import PlutusTypes.ConSig
-import PlutusTypes.Type
 
 import Data.List (intercalate)
 
@@ -22,23 +20,48 @@ import GHC.Generics
 
 
 
--- | A program is some type constructor signatures, constructor signatures,
--- and a series of term declarations.
+
+
+
+-- | A `Declaration` can declare exported and local terms, and also exported
+-- and local constructors.
+
+data Declaration = Export String Term
+                 | Local String Term
+                 | ExportConstructor String
+                 | LocalConstructor String
+
+prettyDeclaration :: Declaration -> String
+prettyDeclaration (Export n m) =
+  "(exp " ++ n ++ " " ++ pretty m ++ ")"
+prettyDeclaration (Local n m) =
+  "(loc " ++ n ++ " " ++ pretty m ++ ")"
+prettyDeclaration (ExportConstructor c) =
+  "(expcon " ++ c ++ ")"
+prettyDeclaration (LocalConstructor c) =
+  "(loccon " ++ c ++ ")"
+
+
+
+
+
+-- | A `Module` is a named collection of declarations.
+
+data Module = Module String [Declaration]
+
+prettyModule :: Module -> String
+prettyModule (Module l decls) =
+  "(module " ++ l ++ " " ++ unwords (map prettyDeclaration decls) ++ ")"
+
+
+
+
+
+-- | A `Program` is a collection of modules.
 
 data Program =
-  Program
-  { termDeclarations :: [(Sourced String, (Term, Type))]
-  }
-  deriving (Generic)
+  Program [Module]
 
-instance Show Program where
-  show (Program stmts) =
-    "program("
-      ++ intercalate ","
-           [ "dec(" ++ showSourced n
-               ++ ";" ++ pretty def
-               ++ ";" ++ pretty ty
-               ++ ")"
-           | (n,(def,ty)) <- stmts
-           ]
-      ++ ")"
+prettyProgram :: Program -> String
+prettyProgram (Program mods) =
+  "(program " ++ unwords (map prettyModule mods) ++ ")"

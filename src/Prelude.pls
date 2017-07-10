@@ -89,8 +89,7 @@ swap : forall a b. Pair a b -> Pair b a {
 -- Bool utils
 
 and : Bool -> Bool -> Bool {
-  and True True = True ;
-  and True False = False ;
+  and True y = y;
   and False _ = False
 }
 

@@ -15,7 +15,7 @@
 
 module Plutus.Term where
 
-import PlutusTypes.Type
+import PlutusShared.Type
 
 import Utils.ABT
 import Utils.Names

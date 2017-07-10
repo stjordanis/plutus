@@ -26,8 +26,8 @@ import Utils.Names
 import Utils.SuffixParser
 import Utils.Vars
 import Plutus.Term
-import PlutusTypes.ConSig
-import PlutusTypes.Type
+import PlutusShared.ConSig
+import PlutusShared.Type
 import Plutus.Program
 
 import Control.Monad (guard)

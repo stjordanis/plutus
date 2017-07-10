@@ -24,8 +24,8 @@ import Utils.ProofDeveloper hiding (Decomposer,ElabError)
 --import Utils.Unifier
 import Utils.Vars
 import Plutus.Term
-import PlutusTypes.ConSig
-import PlutusTypes.Type
+import PlutusShared.ConSig
+import PlutusShared.Type
 import Plutus.Program
 import qualified PlutusCore.Term as Core
 --import qualified PlutusCore.Program as Core
@@ -904,7 +904,7 @@ desugarCase hctx ms0 cls0 =
                        newCtx = newNames ++ ctx
                    return $
                      Core.clauseH
-                       (Core.ConPat c)
+                       c
                        newNames
                        (goDesugar
                          newCtx

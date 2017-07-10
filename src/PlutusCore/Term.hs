@@ -17,7 +17,8 @@
 
 module PlutusCore.Term where
 
-import PlutusTypes.Type
+import PlutusShared.Qualified
+import PlutusShared.Type
 import Utils.ABT
 import Utils.JSABT
 import Utils.Names
@@ -43,38 +44,34 @@ import GHC.Generics hiding (Constructor)
 -- binds @bind(e1;x.e2)@, and finally, built-ins @builtin[n](e*)@.
 
 data TermF r
-  = Decname (Sourced String)
+  = Decname QualifiedName
   | Let r r
   | Lam r
   | App r r
-  | Con String [r]
+  | Con QualifiedConstructor [r]
   | Case r [ClauseF r]
   | Success r
   | Failure
+  | TxHash
+  | BlockNum
+  | BlockTime
   | Bind r r
-  | PrimData PrimData
+  | PrimInt Int
+  | PrimFloat Float
+  | PrimByteString BS.ByteString
   | Builtin String [r]
+  | IsFun r
+  | IsCon r
+  | IsConName QualifiedConstructor r
+  | IsInt r
+  | IsFloat r
+  | IsByteString r
   deriving (Functor,Foldable,Traversable,Generic)
 
 
 type Term = ABT TermF
 
 
--- | There are three kinds of primitive data in Plutus Core: ints, floats,
--- and byte strings.
-
-data PrimData = PrimInt Int
-              | PrimFloat Float
-              | PrimByteString BS.ByteString
-  deriving (Eq,Generic)
-
-
-
--- | A `Constructor` is either just a `String` that names the constructor
--- for a user-defined type, or a `PrimData`.
-
-data SimplePattern = VarPat String | ConPat String
-  deriving (Generic)
 
 
 
@@ -82,7 +79,7 @@ data SimplePattern = VarPat String | ConPat String
 -- | Clauses are a component of terms that have bunch of pattern scopes
 -- together with a clause body.
 
-data ClauseF r = Clause SimplePattern r
+data ClauseF r = Clause QualifiedConstructor r
   deriving (Functor,Foldable,Traversable,Generic)
 
 
@@ -93,7 +90,7 @@ type Clause = ClauseF (Scope TermF)
 
 
 
-decnameH :: Sourced String -> Term
+decnameH :: QualifiedName -> Term
 decnameH n = In (Decname n)
 
 letH :: Term -> String -> Term -> Term
@@ -105,14 +102,14 @@ lamH v b = In (Lam (scope [v] b))
 appH :: Term -> Term -> Term
 appH f x = In (App (scope [] f) (scope [] x))
 
-conH :: String -> [Term] -> Term
+conH :: QualifiedConstructor -> [Term] -> Term
 conH c xs = In (Con c (map (scope []) xs))
 
 caseH :: Term -> [Clause] -> Term
 caseH a cs = In (Case (scope [] a) cs)
 
-clauseH :: SimplePattern -> [String] -> Term -> Clause
-clauseH p vs b = Clause p (scope vs b)
+clauseH :: QualifiedConstructor -> [String] -> Term -> Clause
+clauseH qc vs b = Clause qc (scope vs b)
 
 successH :: Term -> Term
 successH m = In (Success (scope [] m))
@@ -120,33 +117,49 @@ successH m = In (Success (scope [] m))
 failureH :: Term
 failureH = In Failure
 
+txhashH :: Term
+txhashH = In TxHash
+
+blocknumH :: Term
+blocknumH = In BlockNum
+
+blocktimeH :: Term
+blocktimeH = In BlockTime
+
 bindH :: Term -> String -> Term -> Term
 bindH m x n = In (Bind (scope [] m) (scope [x] n))
 
 primIntH :: Int -> Term
-primIntH x = In (PrimData (PrimInt x))
+primIntH x = In (PrimInt x)
 
 primFloatH :: Float -> Term
-primFloatH x = In (PrimData (PrimFloat x))
+primFloatH x = In (PrimFloat x)
 
 primByteStringH :: BS.ByteString -> Term
-primByteStringH x = In (PrimData (PrimByteString x))
+primByteStringH x = In (PrimByteString x)
 
 builtinH :: String -> [Term] -> Term
 builtinH n ms = In (Builtin n (map (scope []) ms))
 
+isFunH :: Term -> Term
+isFunH m = In (IsFun (scope [] m))
+
+isConH :: Term -> Term
+isConH m = In (IsCon (scope [] m))
+
+isConNameH :: QualifiedConstructor -> Term -> Term
+isConNameH qc m = In (IsConName qc (scope [] m))
+
+isIntH :: Term -> Term
+isIntH m = In (IsInt (scope [] m))
+
+isFloatH :: Term -> Term
+isFloatH m = In (IsFloat (scope [] m))
+
+isByteStringH :: Term -> Term
+isByteStringH m = In (IsByteString (scope [] m))
 
 
-
-
-
-prettyPrimData :: PrimData -> String
-prettyPrimData (PrimInt x) =
-  "int[" ++ show x ++ "]"
-prettyPrimData (PrimFloat x) =
-  "float[" ++ show x ++ "]"
-prettyPrimData (PrimByteString x) =
-  "byteString[" ++ prettyByteString x ++ "]"
 
 
 
@@ -157,74 +170,117 @@ instance Parens Term where
   type Loc Term = ()
   
   parenLoc _ = [()]
-
+  
   parenRec (Var v) =
     name v
   parenRec (In (Decname n)) =
-    "defined[" ++ showSourced n
-      ++ "]"
+    "(defined " ++ prettyQualifiedName n
+      ++ ")"
   parenRec (In (Let m n)) =
-    "let("
+    "(let "
     ++ parenthesize Nothing (instantiate0 m)
-    ++ ";"
-    ++ head (names n) ++ "." ++ parenthesize Nothing (body n)
+    ++ " "
+    ++ head (names n)
+    ++ " "
+    ++ parenthesize Nothing (body n)
     ++ ")"
   parenRec (In (Lam sc)) =
-    "\\("
-      ++ unwords (names sc)
-      ++ "."
+    "(lam "
+      ++ head (names sc)
+      ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
   parenRec (In (App f a)) =
-    "app("
+    "(app "
       ++ parenthesize Nothing (instantiate0 f)
-      ++ ";"
+      ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ ")"
   parenRec (In (Con c as)) =
-    "con[" ++ c ++ "]("
-      ++ intercalate
-           ";"
-           (map (parenthesize Nothing . instantiate0) as)
+    "(con "
+      ++ prettyQualifiedConstructor c
+      ++ " "
+      ++ unwords (map (parenthesize Nothing . instantiate0) as)
       ++ ")"
   parenRec (In (Case a cs)) =
-    "case("
+    "(case "
       ++ parenthesize Nothing (body a)
-      ++ ";"
-      ++ intercalate "," (map auxClause cs)
+      ++ " "
+      ++ unwords (map auxClause cs)
       ++ ")"
     where
-      auxPat :: SimplePattern -> String
-      auxPat (VarPat x) = x
-      auxPat (ConPat c) = c
-      
       auxClause :: Clause -> String
       auxClause (Clause con sc) =
-        "cl("
-        ++ auxPat con
-        ++ ";"
-        ++ intercalate "," (names sc)
-        ++ "."
+        "(cl "
+        ++ prettyQualifiedConstructor con
+        ++ " ("
+        ++ unwords (names sc)
+        ++ ") "
         ++ parenthesize Nothing (body sc)
         ++ ")"
   parenRec (In (Success m)) =
-    "success("
+    "(success "
       ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
   parenRec (In Failure ) =
-    "failure()"
+    "failure"
+  parenRec (In TxHash) =
+    "txhash"
+  parenRec (In BlockNum) =
+    "blocknum"
+  parenRec (In BlockTime) =
+    "blocktime"
   parenRec (In (Bind m sc)) =
-    "bind("
+    "(bind "
     ++ parenthesize Nothing (instantiate0 m)
-    ++ ";"
-    ++ unwords (names sc)
-    ++ "."
+    ++ " "
+    ++ head (names sc)
+    ++ " "
     ++ parenthesize Nothing (body sc)
     ++ ")"
-  parenRec (In (PrimData pd)) = prettyPrimData pd
+  parenRec (In (PrimInt i)) =
+    "(primInt "
+      ++ show i
+      ++ ")"
+  parenRec (In (PrimFloat f)) =
+    "(primFloat "
+      ++ show f
+      ++ ")"
+  parenRec (In (PrimByteString bs)) =
+    "(primByteString "
+      ++ prettyByteString bs
+      ++ ")"
   parenRec (In (Builtin n ms)) =
-    "buildin[" ++ n ++ "]("
-      ++ intercalate "," (map (parenthesize Nothing . instantiate0) ms)
+    "(buildin "
+      ++ n
+      ++ " "
+      ++ unwords (map (parenthesize Nothing . instantiate0) ms)
+      ++ ")"
+  parenRec (In (IsFun m)) =
+    "(isFun "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (IsCon m)) =
+    "(isCon "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (IsConName qc m)) =
+    "(isConName "
+      ++ prettyQualifiedConstructor qc
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (IsInt m)) =
+    "(isInt "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (IsFloat m)) =
+    "(isFloat "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (IsByteString m)) =
+    "(isByteString "
+      ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
 
 
@@ -269,7 +325,7 @@ instance ToJS Term where
       go (Var (Meta _)) =
         error "There should never be meta vars in a JS-able term."
       go (In (Decname n)) =
-        return $ JSABT "Decname" [JSString (showSourced n)]
+        return $ JSABT "Decname" [toJS n]
       go (In (Let m sc)) =
         do m' <- go (instantiate0 m)
            (x,b) <- withVar $ \_ -> go (body sc)
@@ -283,7 +339,7 @@ instance ToJS Term where
            return $ JSABT "App" [f',x']
       go (In (Con c ms)) =
         do ms' <- mapM (go . instantiate0) ms
-           return $ JSABT "Con" [JSString c, JSArray ms']
+           return $ JSABT "Con" [toJS c, JSArray ms']
       go (In (Case m cs)) =
         do m' <- go (instantiate0 m)
            cs' <- mapM goClause cs
@@ -293,34 +349,46 @@ instance ToJS Term where
            return $ JSABT "Success" [m']
       go (In Failure) =
         return $ JSABT "Failure" []
+      go (In TxHash) =
+        return $ JSABT "TxHash" []
+      go (In BlockNum) =
+        return $ JSABT "BlockNum" []
+      go (In BlockTime) =
+        return $ JSABT "BlockTime" []
       go (In (Bind m sc)) =
         do m' <- go (instantiate0 m)
            (x,b) <- withVar $ \_ -> go (body sc)
            return $ JSABT "Bind" [m', JSScope [x] b]
-      go (In (PrimData pd)) =
-        do pd' <- goPrimData pd
-           return $ JSABT "PrimData" [pd']
+      go (In (PrimInt i)) =
+        return $ JSABT "PrimInt" [JSInt i]
+      go (In (PrimFloat f)) =
+        return $ JSABT "PrimFloat" [JSFloat f]
+      go (In (PrimByteString bs)) =
+        return $ JSABT "PrimByteString" [JSString (BSChar8.unpack bs)]
       go (In (Builtin n ms)) =
         do ms' <- mapM (go . instantiate0) ms
            return $ JSABT "Builtin" [JSString n, JSArray ms']
-      
-      goPrimData :: PrimData -> State (Int,[String]) JSABT
-      goPrimData (PrimInt i) =
-        return $ JSABT "PrimInt" [JSInt i]
-      goPrimData (PrimFloat f) =
-        return $ JSABT "PrimFloat" [JSFloat f]
-      goPrimData (PrimByteString bs) =
-        return $ JSABT "PrimByteString" [JSString (BSChar8.unpack bs)]
+      go (In (IsFun m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsFun" [m']
+      go (In (IsCon m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsCon" [m']
+      go (In (IsConName qc m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsConName" [toJS qc, m']
+      go (In (IsInt m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsInt" [m']
+      go (In (IsFloat m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsFloat" [m']
+      go (In (IsByteString m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "IsByteString" [m']
       
       goClause :: Clause -> State (Int,[String]) JSABT
       goClause (Clause c sc) =
-        do p' <- goSimplePattern c
-           (xs, b) <- withVars (length (names sc)) $ \_ ->
+        do (xs, b) <- withVars (length (names sc)) $ \_ ->
                         go (body sc)
-           return $ JSABT "Clause" [p', JSScope xs b]
-      
-      goSimplePattern :: SimplePattern -> State (Int,[String]) JSABT
-      goSimplePattern (VarPat x) =
-        return $ JSABT "VarPat" [JSString x]
-      goSimplePattern (ConPat c) =
-        return $ JSABT "ConPat" [JSString c]
+           return $ JSABT "Clause" [toJS c, JSScope xs b]
