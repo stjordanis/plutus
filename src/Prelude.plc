@@ -1,0 +1,1614 @@
+(program
+  (module Prelude
+    (imported)
+    (exported
+      
+      ((Unit (MkUnit))
+       (Pair (MkPair))
+       (Bool (True False))
+       (Maybe (Nothing Just))
+       (Either (Left Right))
+       (List (Nil Cons))
+       (MASTProp
+         (MASTTrue MASTFalse MASTNot MASTAnd MASTOr))
+       (MASTTree
+         (MASTSuccess MASTFailure MASTIf))
+       (MASTPath
+         (MASTPathSuccess MASTPathFailure MASTPathIfTrue MASTPathIfFalse)))
+       
+      (id
+       const
+       flip
+       applyTo
+       compose
+       compose2
+       fst
+       snd
+       curry
+       uncurry
+       swap
+       not
+       and
+       or
+       bool
+       lessThanEqualsInt
+       maxInt
+       minInt
+       lessThanEqualsFloat
+       maxFloat
+       minFloat
+       maybe
+       isJust
+       isNothing
+       fromJust
+       fromMaybe
+       mapMaybe
+       either
+       isLeft
+       isRight
+       eitherToMaybe
+       maybeToEither
+       append
+       head
+       last
+       tail
+       init
+       uncons
+       null
+       length
+       take
+       drop
+       splitAt
+       takeWhile
+       dropWhile
+       span
+       groupBy
+       foldr
+       foldr1
+       foldl
+       foldl1
+       unfoldr
+       replicate
+       map
+       reverseOnto
+       reverse
+       prependToAll
+       intersperse
+       concat
+       concatMap
+       intercalate
+       filter
+       find
+       partition
+       nubBy
+       zipWith
+       zip
+       unzip
+       andList
+       orList
+       any
+       all
+       sumInt
+       sumFloat
+       productInt
+       productFloat
+       maximumBy
+       minimumBy
+       project
+       findIndex
+       findIndicesFrom
+       findIndices
+       evenOddSplitFrom
+       evenOddSplit
+       mergeBy
+       mergeSortBy
+       quickSortBy
+       listToMaybe
+       maybeToList
+       catMaybes
+       lefts
+       rights
+       partitionEithers
+       verifyMultiSig
+       evalMASTProp
+       evalMASTPath
+       hashMASTProp
+       hashMASTTree
+       hashMASTPath
+       checkMAST))
+    
+    
+    
+    ;;
+    ;; Function Tools
+    ;;
+    
+    (declare id (forall a (type) (fun a a)))
+    (define id
+      (lam x x))
+    
+    
+    (declare const
+      (forall a (type) (forall b (type)
+        (fun a (fun b a)))))
+    (define const
+      (lam x (lam y x)))
+    
+    
+    (declare flip
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun a (fun b c))
+             (fun b (fun a c)))))))
+    (define flip
+      (lam f (lam x (lam y
+        [f y x]))))
+    
+    
+    (declare applyTo
+      (forall a (type) (forall b (type)
+        (fun a (fun (fun a b) b)))))
+    (define applyTo
+      (lam x (lam f
+        [f x])))
+    
+    
+    (declare compose
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun b c)
+             (fun (fun a b)
+                  (fun a c)))))))
+    (define compose
+      (lam f (lam g (lam x
+        [f [g x]]))))
+    
+    
+    (declare compose2
+      (forall a (type) (forall b (type) (forall c (type) (forall d (type)
+        (fun (fun c d)
+             (fun (fun a (fun b c))
+                  (fun a (fun b d)))))))))
+    (define compose2
+      (lam f (lam g (lam x (lam y
+        [f [g x y]])))))
+    
+    
+    
+    ;;
+    ;; Unit Tools
+    ;;
+    
+    (data Unit () (MkUnit))
+    
+    
+    
+    ;;
+    ;; Pair Tools
+    ;;
+    
+    (data Pair ((a (type)) (b (type)))
+          (MkPair a b))
+    
+    
+    (declare fst
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Pair a b) a))))
+    (define fst
+      (lam p
+        (case p
+          (Prelude.MkPair (x y) x))))
+    
+    
+    (declare snd
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Pair a b) b))))
+    (define snd
+      (lam p
+        (case p
+          (Prelude.MkPair (x y) y))))
+    
+    
+    (declare curry
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun (con Prelude.Pair a b) c)
+             (fun a (fun b c)))))))
+    (define curry
+      (lam f (lam x (lam y
+        [f (con Prelude.MkPair x y)]))))
+    
+    
+    (declare uncurry
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun a (fun b c))
+             (fun (con Prelude.Pair a b) c))))))
+    (define uncurry
+      (lam f (lam p
+        (case p
+          (Prelude.MkPair (x y) [f x y])))))
+    
+    
+    (declare swap
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Pair a b)
+             (con Prelude.Pair b a)))))
+    (define swap
+      (lam p
+        (case p
+          (Prelude.MkPair (x y) (con Prelude.MkPair y x)))))
+    
+    
+    
+    ;;
+    ;; Boolean Tools
+    ;;
+    
+    (data Bool () (True) (False))
+    
+    
+    (declare not
+      (fun (con Prelude.Bool) (con Prelude.Bool)))
+    (define not
+      (lam x
+        (case x
+          (Prelude.True () (con Prelude.False))
+          (Prelude.False () (con Prelude.True)))))
+    
+    
+    (declare and
+      (fun (con Prelude.Bool)
+           (fun (con Prelude.Bool)
+                (con Prelude.Bool))))
+    (define and
+      (lam x (lam y
+        (case x
+          (Prelude.True () y)
+          (Prelude.False () (con Prelude.False))))))
+    
+    
+    (declare or
+      (fun (con Prelude.Bool)
+           (fun (con Prelude.Bool)
+                (con Prelude.Bool))))
+    (define or
+      (lam x (lam y
+        (case x
+          (Prelude.True () (con Prelude.True))
+          (Prelude.False () x)))))
+    
+    
+    (declare bool
+      (forall a (type)
+        (fun a (fun a (fun (con Prelude.Bool) a)))))
+    (define bool
+      (lam f (lam t (lam b
+        (case b
+          (Prelude.True  () t)
+          (Prelude.False () f))))))
+    
+    
+    
+    ;;
+    ;; Integer Tools
+    ;;
+    
+    (declare addInt
+      (fun (integer) (fun (integer) (integer))))
+    (define addInt
+      (lam x (lam y
+        (builtin addInt x y))))
+    
+    
+    (declare subtractInt
+      (fun (integer) (fun (integer) (integer))))
+    (define subtractInt
+      (lam x (lam y
+        (builtin subtractInt x y))))
+    
+    
+    (declare multiplyInt
+      (fun (integer) (fun (integer) (integer))))
+    (define multiplyInt
+      (lam x (lam y
+        (builtin multiplyInt x y))))
+    
+    
+    (declare divideInt
+      (fun (integer) (fun (integer) (integer))))
+    (define divideInt
+      (lam x (lam y
+        (builtin divideInt x y))))
+    
+    
+    (declare remainderInt
+      (fun (integer) (fun (integer) (integer))))
+    (define remainderInt
+      (lam x (lam y
+        (builtin remainderInt x y))))
+    
+    
+    (declare equalsInt
+      (fun (integer) (fun (integer) (con Prelude.Bool))))
+    (define equalsInt
+      (lam x (lam y
+        (builtin equalsInt x y))))
+    
+    
+    (declare lessThanInt
+      (fun (integer) (fun (integer) (con Prelude.Bool)))
+    (define lessThanInt
+      (lam x (lam y
+        (builtin lessThanInt x y))))
+    
+    
+    (declare lessThanEqualsInt
+      (fun (integer) (fun (integer) (con Prelude.Bool))))
+    (define lessThanEqualsInt
+      (lam x (lam y
+        [Prelude.not (builtin lessThanInt y x)])))
+    
+    
+    (declare maxInt
+      (fun (integer) (fun (integer) (integer))))
+    (define maxInt
+      (lam x (lam y
+        (case (builtin lessThanInt x y)
+          (Prelude.True () y)
+          (Prelude.False () x)))))
+    
+    
+    (declare minInt
+      (fun (integer) (fun (integer) (integer))))
+    (define minInt
+      (lam x (lam y
+        (case (builtin lessThanInt x y)
+          (Prelude.True () x)
+          (Prelude.False () y)))))
+    
+    
+    (declare intToFloat
+      (fun (integer) (float)))
+    (define intToFloat
+      (lam x
+        (buildin intToFloat x)))
+    
+    
+    (declare intToByteString
+      (fun (integer) (bytestring)))
+    (define intToByteString
+      (lam x
+        (builtin intToByteString x)))
+    
+    
+    
+    ;;
+    ;; Float Tools
+    ;;
+    
+    (declare addFloat
+      (fun (float) (fun (float) (float))))
+    (define addFloat
+      (lam x (lam y
+        (builtin addFloat x y))))
+    
+    
+    (declare subtractFloat
+      (fun (float) (fun (float) (float))))
+    (define subtractFloat
+      (lam x (lam y
+        (built subtractFloat x y))))
+    
+    
+    (declare multiplyFloat
+      (fun (float) (fun (float) (float))))
+    (define multiplyFloat
+      (lam x (lam y
+        (builtin multiplyFloat x y))))
+    
+    
+    (declare divideFloat
+      (fun (float) (fun (float) (float))))
+    (define divideFloat
+      (lam x (lam y
+        (builtin divideFloat x y))))
+    
+    
+    (declare equalsFloat
+      (fun (float) (fun (float) (con Prelude.Bool))))
+    (define equalsFloat
+      (lam x (lam y
+        (builtin equalsFloat x y))))
+    
+    
+    (declare lessThanFloat
+      (fun (float) (fun (float) (con Prelude.Bool))))
+    (define lessThanFloat
+      (lam x (lam y
+        (builtin lessThanFloat x y))))
+    
+    
+    (declare lessThanEqualsFloat
+      (fun (float) (fun (float) (con Prelude.Bool))))
+    (define lessThanEqualsFloat
+      (lam x (lam y
+        [Prelude.not (builtin lessThanFloat y x)])))
+    
+    
+    (declare ceil
+      (fun (float) (integer)))
+    (define ceil
+      (lam x
+        (builtin ceil x)))
+    
+    
+    (declare floor
+      (fun (float) (integer)))
+    (define floor
+      (lam x
+        (builtin floor x)))
+    
+    
+    (declare maxFloat
+      (fun (float) (fun (float) (float))))
+    (define maxFloat
+      (lam x (lam y
+        (case (builtin lessThanFloat x y)
+          (Prelude.True () y)
+          (Prelude.False () x)))))
+    
+    
+    (declare minFloat
+      (fun (float) (fun (float) (float))))
+    (define minFloat
+      (lam x (lam y
+        (case (builtin lessThanFloat x y)
+          (Prelude.True () x)
+          (Prelude.False () y)))))
+    
+    
+    
+    ;;
+    ;; ByteString Tools
+    ;;
+    
+    (declare concatenate
+      (fun (bytestring) (fun (bytestring) (bytestring))))
+    (define concatenate
+      (lam x (lam y
+        (builtin concatenate x y))))
+    
+    
+    (declare takeByteString
+      (fun (integer) (fun (bytestring) (bytestring))))
+    (define takeByteString
+      (lam n (lam x
+        (builtin takeByteString n x))))
+    
+    
+    (declare dropByteString
+      (fun (integer) (fun (bytestring) (bytestring))))
+    (define dropByteString
+      (lam n (lam x
+        (builtin dropByteString n x))))
+    
+    
+    (declare sha2_256
+      (fun (bytestring) (bytestring)))
+    (define sha2_256
+      (lam x
+        (builtin sha2_256 x)))
+    
+    
+    (declare sha3_256
+      (fun (bytestring) (bytestring)))
+    (define sha3_256
+      (lam x
+        (builtin sha3_256 x)))
+    
+    
+    (declare equalsByteString
+      (fun (bytestring) (fun (bytestring) (con Prelude.Bool))))
+    (define equalsByteString
+      (lam x (lam y
+        (builtin equalsByteString x y))))
+    
+    
+    
+    ;;
+    ;; Maybe Tools
+    ;;
+    
+    (data Maybe ((a (type)))
+          (Nothing)
+          (Just a))
+    
+    
+    (declare maybe
+      (forall a (type) (forall b (type)
+        (fun b (fun (fun a b) (fun (con Prelude.Maybe a) b))))))
+    (define maybe
+      (lam n (lam j (lam m
+        (case m
+          (Prelude.Nothing () n)
+          (Prelude.Just (x) [j x]))))))
+    
+    
+    (declare isJust
+      (forall a (type)
+        (fun (con Prelude.Maybe a) (con Prelude.Bool))))
+    (define isJust
+      (lam m
+        (case m
+          (Prelude.Nothing () (con Prelude.False))
+          (Prelude.Just (x) (con Prelude.True)))))
+    
+    
+    (declare isNothing
+      (forall a (type)
+        (fun (con Prelude.Maybe a) (con Prelude.Bool))))
+    (define isNothing
+      (lam m
+        (case m
+          (Prelude.Nothing () (con Prelude.True))
+          (Prelude.Just (x) (con Prelude.False)))))
+    
+    
+    (declare fromJust
+      (forall a (type)
+        (fun (con Prelude.Maybe a) a)))
+    (define fromJust
+      (lam m
+        (case m
+          (Prelude.Just (x) x))))
+    
+    
+    (declare fromMaybe
+      (forall a (type)
+        (fun a (fun (con Prelude.Maybe a) a))))
+    (define fromMaybe
+      (lam n (lam m
+        (case m
+          (Prelude.Nothing () n)
+          (Prelude.Just (x) x)))))
+    
+    
+    (declare mapMaybe
+      (forall a (type) (forall b (type)
+        (fun (fun a b)
+             (fun (con Prelude.Maybe a)
+                  (con Prelude.Maybe b))))))
+    (define mapMaybe
+      (lam f (lam m
+        (case m
+          (Prelude.Nothing () (con Prelude.Nothing))
+          (Prelude.Just (x) (con Prelude.Just [f x]))))))
+    
+    
+    
+    ;;
+    ;; Either Tools
+    ;;
+    
+    (data Either ((a (type)) (b (type)))
+          (Left a)
+          (Right b))
+    
+    
+    (declare either
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun a c)
+             (fun (fun b c)
+                  (fun (con Prelude.Either a b) c)))))))
+    (define either
+      (lam f (lam g (lam e
+        (case e
+          (Prelude.Left (x) [f x])
+          (Prelude.Right (y) [g y]))))))
+    
+    
+    (declare isLeft
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Either a b) (con Prelude.Bool)))))
+    (define isLeft
+      (lam e
+        (case e
+          (Prelude.Left (x) (con Prelude.True))
+          (Prelude.Right (y) (con Prelude.False)))))
+    
+    
+    (declare isRight
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Either a b) (con Prelude.Bool)))))
+    (define isRight
+      (lam e
+        (case e
+          (Prelude.Left (x) (con Prelude.False))
+          (Prelude.Right (y) (con Prelude.True)))))
+    
+    
+    (declare eitherToMaybe
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.Either a b)
+             (con Prelude.Maybe b)))))
+    (define eitherToMaybe
+      (lam e
+        (case e
+          (Prelude.Left (x) (con Prelude.Nothing))
+          (Prelude.Right (y) (con Prelude.Just y)))))
+    
+    
+    (declare maybeToEither
+      (forall a (type) (forall b (type)
+        (fun a
+          (fun (con Prelude.Maybe b)
+               (con Prelude.Either a b))))))
+    (define maybeToEither
+      (lam x (lam m
+        (case m
+          (Prelude.Nothing () (con Prelude.Left x))
+          (Prelude.Just (y) (con Prelude.Right y))))))
+    
+    
+    
+    ;;
+    ;; List Tools
+    ;;
+    
+    (data List ((a (type)))
+          (Nil)
+          (Cons a (con Prelude.List a)))
+    
+    
+    (declare append
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define append
+      (lam xs (lam ys
+        (case xs
+          (Prelude.Nil () ys)
+          (Prelude.Cons (x xs') (con Prelude.Cons x [Prelude.append xs' ys]))))))
+    
+    
+    (declare head
+      (forall a (type)
+        (fun (con Prelude.List a) (con Prelude.Maybe a))))
+    (define head
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs') (con Prelude.Just x)))))
+    
+    
+    (declare last
+      (forall a (type)
+        (fun (con Prelude.List a) (con Prelude.Maybe a))))
+    (define last
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs')
+            (case xs'
+              (Prelude.Nil () (con Prelude.Just x))
+              (Prelude.Cons (x' xs'') [Prelude.last (con Prelude.Cons x' xs'')]))))))
+    
+    
+    (declare tail
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (con Prelude.Maybe (con Prelude.List a)))))
+    (define tail
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs) (con Prelude.Just xs)))))
+    
+    
+    (declare init
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (con Prelude.Maybe (con Prelude.List a)))))
+    (define init
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs)
+            (case [Prelude.init xs]
+              (Prelude.Nothing () (con Prelude.Nil))
+              (Prelude.Just (ys) (con Prelude.Just (con Prelude.Cons x ys))))))))
+    
+    
+    (declare uncons
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (con Prelude.Maybe (con Prelude.Pair a (con Prelude.List a))))))
+    (define uncons
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs) (con Prelude.Just (con Prelude.MkPair x xs))))))
+    
+    
+    (declare null
+      (forall a (type)
+        (fun (con Prelude.List a) (con Prelude.Bool))))
+    (define null
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.True))
+          (Prelude.Cons (x xs) (con Prelude.False)))))
+    
+    
+    (declare length
+      (forall a (type)
+        (fun (con Prelude.List a) (integer))))
+    (define length
+      (lam xs
+        (case xs
+          (Prelude.Nil () 0)
+          (Prelude.Cons (x xs) (builtin addInt 1 [Prelude.length xs])))))
+    
+    
+    (declare take
+      (forall a (type)
+        (fun (integer)
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define take
+      (lam n (lam xs
+        (case (builtin equalsInt n 0)
+          (Prelude.True () (con Prelude.Nil))
+          (Prelude.False ()
+            (case xs
+              (Prelude.Nil () (con Prelude.Nil))
+              (Prelude.Cons (x xs')
+                (con Prelude.Cons x [Prelude.take (builtin subtractInt n 1) xs']))))))))
+    
+    
+    (declare drop
+      (forall a (type)
+        (fun (integer)
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define drop
+      (lam n (lam xs
+        (case (builtin equalsInt n 0)
+          (Prelude.True () xs)
+          (Prelude.False ()
+            (case xs
+              (Prelude.Nil () (con Prelude.Nil))
+              (Prelude.Cons (x xs')
+                [Prelude.drop (builtin subtractInt n 1) xs'])))))))
+    
+    
+    (declare splitAt
+      (forall a (type)
+        (fun (integer)
+             (fun (con Prelude.List a)
+                  (con Prelude.Pair
+                       (con Prelude.List a)
+                       (con Prelude.List a))))))
+    (define splitAt
+      (lam n (lam xs
+        (case (builtin equalsInt n 0)
+          (Prelude.True () (con Prelude.MkPair (con Prelude.Nil) xs))
+          (Prelude.False ()
+            (case xs
+              (Prelude.Nil () (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
+              (Prelude.Cons (x xs')
+                (case [Prelude.splitAt (builtin subtractInt n 1) xs']
+                  (Prelude.MkPair (ys zs) (con Prelude.MkPair (con Prelude.Cons x ys) zs))))))))))
+    
+    
+    (declare takeWhile
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define takeWhile
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True () (con Prelude.Cons x [Prelude.takeWhile p xs']))
+              (Prelude.False () (con Prelude.Nil))))))))
+    
+    
+    (declare dropWhile
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define dropWhile
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True () [Prelude.dropWhile p xs'])
+              (Prelude.False () (con Prelude.Cons x xs'))))))))
+    
+    
+    (declare span
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Pair
+                    (con Prelude.List a)
+                    (con Prelude.List a))))))
+    (define span
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True ()
+                (case [Prelude.span p xs']
+                  (Prelude.MkPair (ys zs) (con Prelude.MkPair (con Prelude.Cons x ys) zs))))
+              (Prelude.False ()
+                (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Cons x xs')))))))))
+    
+    
+    (declare groupBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  (con Prelude.List (con Prelude.List a))))))
+    (define groupBy
+      (lam eq (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [Prelude.span [eq x] xs']
+              (Prelude.MkPair
+                (ys zs)
+                (con Prelude.Cons
+                  (con Prelude.Cons x ys)
+                  [Prelude.groupBy eq zs]))))))))
+    
+    
+    (declare foldr
+      (forall a (type) (forall b (type)
+        (fun (fun a (fun b b))
+             (fun b
+                  (fun (con Prelude.List a)
+                       b))))))
+    (define foldr
+      (lam c (lam n (lam xs
+        (case xs
+          (Prelude.Nil () n)
+          (Prelude.Cons (x xs')
+            [c x [Prelude.foldr c n xs']]))))))
+    
+    
+    (declare foldr1
+      (forall a (type)
+        (fun (fun a (fun a a))
+             (fun (con Prelude.List a)
+                  a))))
+    (define foldr1
+      (lam c (lam xs
+        (case xs
+          (Prelude.Cons (x xs')
+            (case xs'
+              (Prelude.Nil () x)
+              (Prelude.Cons (x' xs'')
+                [c x [Prelude.foldr1 c (con Prelude.Cons x' xs')]])))))))
+    
+    
+    (declare foldl
+      (forall a (type) (forall b (type)
+        (fun (fun b (fun a b))
+             (fun b
+                  (fun (con Prelude.List a)
+                       b))))))
+    (define foldl
+      (lam s (lam n (lam xs
+        (case xs
+          (Prelude.Nil () n)
+          (Prelude.Cons (x xs')
+            [Prelude.foldl s [s n x] xs']))))))
+    
+    
+    (declare foldl1
+      (forall a (type)
+        (fun (fun a (fun a a))
+             (fun (con Prelude.List a)
+                  a))))
+    (define foldl1
+      (lam s (lam xs
+        (case xs
+          (Prelude.Cons (x xs')
+            [Prelude.foldl s x xs'])))))
+    
+    
+    (declare unfoldr
+      (forall a (type) (forall b (type)
+        (fun (fun b (con Prelude.Maybe (con Prelude.Pair a b)))
+             (fun b (con Prelude.List a))))))
+    (define unfoldr
+      (lam step (lam s
+        (case [step s]
+          (Prelude.Nothing () (con Prelude.Nil))
+          (Prelude.Just (p)
+            (case p
+              (Prelude.MkPair (x s')
+                (con Prelude.Cons x [Prelude.unfoldr step s']))))))))
+    
+    
+    (declare replicate
+      (forall a (type)
+        (fun (integer) (fun a (con Prelude.List a)))))
+    (define replicate
+      (lam n (lam x
+        (case (builtin equalsInt n 0)
+          (Prelude.True () (con Prelude.Nil))
+          (Prelude.False ()
+            (con Prelude.Cons x [Prelude.replicate (builtin subtractInt n 1) x]))))))
+    
+    
+    (declare map
+      (forall a (type) (forall b (type)
+        (fun (fun a b)
+             (fun (con Prelude.List a) (con Prelude.List b))))))
+    (define map
+      (lam f (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (con Prelude.Cons [f x] [Prelude.map f xs']))))))
+    
+    
+    (declare reverseOnto
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define reverseOnto
+      (lam xs (lam ys
+        (case xs
+          (Prelude.Nil () ys)
+          (Prelude.Cons (x xs')
+            [Prelude.reverseOnto xs' (con Prelude.Cons x ys)])))))
+    
+    
+    (declare reverse
+      (forall a (type) (fun (con Prelude.List a) (con Prelude.List a))))
+    (define reverse
+      (lam xs [Prelude.reverseOnto xs (con Prelude.Nil)]))
+    
+    
+    (declare prependToAll
+      (forall a (type)
+        (fun a
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define prependToAll
+      (lam sep (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Cons sep (con Prelude.Nil)))
+          (Prelude.Cons (x xs')
+            (con Prelude.Cons sep (con Prelude.Cons x [Prelude.prependToAll sep xs'])))))))
+    
+    
+    (declare intersperse
+      (forall a (type)
+        (fun a
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define intersperse
+      (lam sep (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (con Prelude.Cons x [Prelude.prependToAll sep xs']))))))
+    
+    
+    (declare concat
+      (forall a (type)
+        (fun (con Prelude.List (con Prelude.List a))
+             (con Prelude.List a))))
+    (define concat
+      (lam xss
+        (case xss
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (xs xss')
+            [Prelude.append xs [Prelude.concat xss']]))))
+    
+    
+    (declare concatMap
+      (forall a (type) (forall b (type)
+        (fun (fun a (con Prelude.List b))
+             (fun (con Prelude.List a)
+                  (con Prelude.List b))))))
+    (define concatMap
+      (lam f (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            [Prelude.append [f x] [Prelude.concatMap f xs']])))))
+    
+    
+    (declare intercalate
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (fun (con Prelude.List (con Prelude.List a))
+                  (con Prelude.List a)))))
+    (define intercalate
+      (lam xs (lam xss
+        [Prelude.concat [Prelude.intersperse xs xss]])))
+    
+    
+    (declare filter
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define filter
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True () (con Prelude.Cons x [Prelude.filter p xs']))
+              (Prelude.False () [Prelude.filter p xs'])))))))
+    
+    
+    (declare find
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Maybe a)))))
+    (define find
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True () (con Prelude.Just x))
+              (Prelude.False () [Prelude.find p xs'])))))))
+    
+    
+    (declare partition
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Pair
+                       (con Prelude.List a)
+                       (con Prelude.List a))))))
+    (define partition
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
+          (Prelude.Cons (x xs')
+            (case [Prelude.partition p xs']
+              (Prelude.MkPair (ts fs)
+                (case [p x]
+                  (Prelude.True () (con Prelude.MkPair (con Prelude.Cons x ts) fs))
+                  (Prelude.False () (con Prelude.MkPair ts (con Prelude.Cons x fs)))))))))))
+    
+    
+    (declare nubBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define nubBy
+      (lam comp (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (con Prelude.Cons
+              x
+              [Prelude.filter
+                (lam y [Prelude.not [comp x y]])
+                [Prelude.nubBy comp xs']]))))))
+    
+    
+    (declare zipWith
+      (forall a (type) (forall b (type) (forall c (type)
+        (fun (fun a (fun b c))
+             (fun (con Prelude.List a)
+                  (fun (con Prelude.List b)
+                       (con Prelude.List c))))))))
+    (define zipWith
+      (lam f (lam xs (lam ys
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case ys
+              (Prelude.Nil () (con Prelude.Nil))
+              (Prelude.Cons (y ys')
+                (con Prelude.Cons [f x y] [Prelude.zipWith f xs' ys'])))))))))
+    
+    
+    (declare zip
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.List a)
+             (fun (con Prelude.List b)
+                  (con Prelude.List (con Prelude.Pair a b)))))))
+    (define zip
+      (lam xs (lam ys
+        [Prelude.zipWith (lam x (lam y (con Prelude.MkPair x y))) xs ys])))
+    
+    
+    (declare unzip
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.List (con Prelude.Pair a b))
+             (con Prelude.Pair (con Prelude.List a)
+                               (con Prelude.List b))))))
+    (define unzip
+      (lam xys
+        (case xys
+          (Prelude.Nil () (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
+          (Prelude.Cons (xy xys')
+            (case xy
+              (Prelude.MkPair (x y)
+                (case [Prelude.unzip xys']
+                  (Prelude.MkPair (xs ys)
+                    (con Prelude.MkPair (con Prelude.Cons x xs) (con Prelude.Cons y ys))))))))))
+    
+    
+    (declare andList
+      (fun (con Prelude.List (con Prelude.Bool)) (con Prelude.Bool)))
+    (define andList
+      (lam bs [Prelude.foldl and (con Prelude.True) bs]))
+    
+    
+    (declare orList
+      (fun (con Prelude.List (con Prelude.Bool)) (con Prelude.Bool)))
+    (define orList
+      (lam bs [Prelude.foldl or (con Prelude.False) bs]))
+    
+    
+    (declare any
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Bool)))))
+    (define any
+      (lam p (lam xs [Prelude.orList [Prelude.map p xs]])))
+    
+    
+    (declare all
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Bool)))))
+    (define all
+      (lam p (lam xs [Prelude.andList [Prelude.map p xs]])))
+    
+    
+    (declare sumInt
+      (fun (con Prelude.List (integer)) (integer)))
+    (define sumInt
+      (lam xs [Prelude.foldl (lam x (lam y (builtin addInt x y))) 0 xs]))
+    
+    
+    (declare sumFloat
+      (fun (con Prelude.List (float)) (float)))
+    (define sumFloat
+      (lam xs [Prelude.foldl (lam x (lam y (builtin addFloat x y))) 0.0 xs]))
+    
+    (declare productInt
+      (fun (con Prelude.List (integer)) (integer)))
+    (define productInt
+      (lam xs [Prelude.foldl (lam x (lam y (builtin multiplyInt x y))) 1 xs]))
+    
+    
+    (declare productFloat
+      (fun (con Prelude.List (float)) (float)))
+    (define productFloat
+      (lam xs [Prelude.foldl (lam x (lam y (builtin multiplyFloat x y))) 1.0 xs]))
+    
+    (declare maximumBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  a))))
+    (define maximumBy
+      (lam comp
+        [Prelude.foldl1
+          (lam x (lam y
+            (case [comp x y]
+              (Prelude.True () y)
+              (Prelude.False () x))))]))
+    
+    
+    (declare minimumBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  a))))
+    (define minimumBy
+      (lam comp
+        [Prelude.foldl1
+          (lam x (lam y
+            (case [comp x y]
+              (Prelude.True () x)
+              (Prelude.False () y))))]))
+    
+    
+    (declare project
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (fun (integer)
+                  (con Prelude.Maybe a)))))
+    (define project
+      (lam xs (lam n
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs')
+            (case (builtin equalsInt n 0)
+              (Prelude.True () (con Prelude.Just x))
+              (Prelude.False () [Prelude.project xs' (builtin subtractInt n 1)])))))))
+    
+    
+    (declare findIndex
+      (forall a (type)
+        (fun (fun a (con Prelude.Bool))
+             (fun (con Prelude.List a)
+                  (con Prelude.Maybe (integer))))))
+    (define findIndex
+      (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True () (con Prelude.Just 0))
+              (Prelude.False ()
+                (case [Prelude.findIndex p xs']
+                  (Prelude.Nothing () (con Prelude.Nothing))
+                  (Prelude.Just (i) (con Prelude.Just (builtin addInt i 1)))))))))))
+    
+    
+    (declare findIndicesFrom
+      (forall a (type)
+        (fun (integer)
+             (fun (fun a (con Prelude.Bool))
+                  (fun (con Prelude.List a)
+                       (con Prelude.List (integer)))))))
+    (define findIndicesFrom
+      (lam i (lam p (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [p x]
+              (Prelude.True ()
+                (con Prelude.Cons i [Prelude.findIndicesFrom (builtin addInt i 1) p xs]))
+              (Prelude.False ()
+                [Prelude.findIndicesFrom (builtin addInt i 1) p xs]))))))))
+    
+    
+    (declare findIndices
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (fun (fun a (con Prelude.Bool))
+                  (con Prelude.List (integer))))))
+    (define findIndices
+      (lam xs (lam p [Prelude.findIndicesFrom 0 p xs])))
+    
+    
+    (declare evenOddSplitFrom
+      (forall a (type)
+        (fun (con Prelude.Bool)
+             (fun (con Prelude.List a)
+                  (con Prelude.Pair
+                       (con Prelude.List a)
+                       (con Prelude.List a))))))
+    (define evenOddSplitFrom
+      (lam b (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
+          (Prelude.Cons (x xs')
+            (case [Prelude.evenOddSplitFrom [not b] xs']
+              (Prelude.MkPair (es os)
+                (case b
+                  (Prelude.True () (con Prelude.MkPair (con Prelude.Cons x es) os))
+                  (Prelude.False () (con Prelude.MkPair es (con Prelude.Cons x os)))))))))))
+    
+    
+    (declare evenOddSplit
+      (forall a (type)
+        (fun (con Prelude.List a)
+             (con Prelude.Pair
+                  (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define evenOddSplit
+      (lam xs [Prelude.evenOddSplitFrom (con Prelude.True) xs]))
+    
+    
+    (declare mergeBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  (fun (con Prelude.List a)
+                       (con Prelude.List a))))))
+    (define mergeBy
+      (lam comp (lam xs (lam ys
+        (case xs
+          (Prelude.Nil () ys)
+          (Prelude.Cons (x xs')
+            (case ys
+              (Prelude.Nil () (con Prelude.Cons x xs'))
+              (Prelude.Cons (y ys')
+                (case [comp x y]
+                  (Prelude.True ()
+                    (con Prelude.Cons
+                      x
+                      [Prelude.mergeBy comp xs' (con Prelude.Cons y ys')]))
+                  (Prelude.False ()
+                    (con Prelude.Cons
+                      y
+                      [Prelude.mergeBy comp (con Prelude.Cons x xs') ys'])))))))))))
+    
+    
+    (declare mergeSortBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define mergeSortBy
+      (lam comp (lam xs
+        (case [Prelude.evenOddSplit xs]
+          (Prelude.MkPair (es os)
+            [Prelude.mergeBy
+              comp
+              [Prelude.mergeSortBy comp es]
+              [Prelude.mergeSortBy comp os]])))))
+    
+    
+    (declare quickSortBy
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+             (fun (con Prelude.List a)
+                  (con Prelude.List a)))))
+    (define quickSortBy
+      (lam comp (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (x xs')
+            (case [Prelude.partition [comp x] xs']
+              (Prelude.MkPair (lo hi)
+                [Prelude.append
+                  [Prelude.quickSortBy comp lo]
+                  (con Prelude.Cons x [Prelude.quickSortBy comp hi])])))))))
+
+    
+    (declare listToMaybe
+      (forall a (type)
+        (fun (con Prelude.List a) (con Prelude.Maybe a))))
+    (define listToMaybe
+      (lam xs
+        (case xs
+          (Prelude.Nil () (con Prelude.Nothing))
+          (Prelude.Cons (x xs') (con Prelude.Just x)))))
+    
+    
+    (declare maybeToList
+      (forall a (type)
+        (fun (con Prelude.Maybe a) (con Prelude.List a))))
+    (define maybeToList
+      (lam m
+        (case m
+          (Prelude.Nothing () (con Prelude.Nil))
+          (Prelude.Just (x) (con Prelude.Cons x (con Prelude.Nil))))))
+    
+    
+    (declare catMaybes
+      (forall a (type)
+        (fun (con Prelude.List (con Prelude.Maybe a))
+             (con Prelude.List a))))
+    (define catMaybes
+      (lam ms
+        (case ms
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (m ms')
+            (case m
+              (Prelude.Nothing () [Prelude.catMaybes ms'])
+              (Prelude.Just (x)
+                (con Prelude.Cons x [Prelude.catMaybes ms'])))))))
+    
+    
+    (declare lefts
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.List (con Prelude.Either a b))
+             (con Prelude.List a)))))
+    (define lefts
+      (lam es
+        (case es
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (e es')
+            (case e
+              (Prelude.Left (x) (con Prelude.Cons x [Prelude.lefts es']))
+              (Prelude.Right (y) [Prelude.lefts es']))))))
+    
+    
+    (declare rights
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.List (con Prelude.Either a b))
+             (con Prelude.List b)))))
+    (define rights
+      (lam es
+        (case es
+          (Prelude.Nil () (con Prelude.Nil))
+          (Prelude.Cons (e es')
+            (case e
+              (Prelude.Left (x) [Prelude.rights es'])
+              (Prelude.Right (y)
+                (con Prelude.Cons y [Prelude.rights es'])))))))
+    
+    
+    (declare partitionEithers
+      (forall a (type) (forall b (type)
+        (fun (con Prelude.List (con Prelude.Either a b))
+             (con Prelude.Pair
+                  (con Prelude.List a)
+                  (con Prelude.List b))))))
+    (define partitionEithers
+      (lam es
+        (case es
+          (Prelude.Nil ()
+            (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
+          (Prelude.Cons (e es')
+            (case [Prelude.partitionEithers es']
+              (Prelude.MkPair (ls rs)
+                (case e
+                  (Prelude.Left (x)
+                    (con Prelude.MkPair (con Prelude.Cons x ls) rs))
+                  (Prelude.Right (y)
+                    (con Prelude.MkPair ls (con Prelude.Cons x rs))))))))))
+    
+    
+    
+    ;;
+    ;; Blockchain Tools
+    ;;
+    
+    (declare verifyMultiSig
+      (fun (integer)
+        (fun (con Prelude.List (bytestring))
+          (fun (bytestring)
+            (fun (con Prelude.List (con Prelude.Maybe (bytestring)))
+              (comp (con Prelude.Unit)))))))
+    (define verifyMultiSig
+      (lam n (lam keys (lam dat (lam sigs
+        (case [Prelude.and
+                (builtin equalsInt
+                  [Prelude.length keys]
+                  [Prelude.length sigs])
+                [Prelude.lessThanEqualsInt
+                  n
+                  [Prelude.length
+                    [Prelude.filter id
+                      [Prelude.zipWith [Prelude.verify dat] keys sigs]]]]]
+          (Prelude.True () (success (con Prelude.MkUnit)))
+          (Prelude.False () (failure))))))))
+    
+    
+    (data MASTProp ()
+      (MASTTrue)
+      (MASTFalse)
+      (MASTNot (con Prelude.MASTProp))
+      (MASTAnd (con Prelude.MASTProp) (con Prelude.MASTProp))
+      (MASTOr (con Prelude.MASTProp) (con Prelude.MASTProp)))
+    
+    
+    (declare evalMASTProp
+      (fun (con Prelude.MASTProp) (con Prelude.Bool)))
+    (define evalMASTProp
+      (lam m
+        (case m
+          (Prelude.MASTNot (x) [Prelude.not [Prelude.evalMASTProp x]])
+          (Prelude.MASTAnd (x y)
+            [Prelude.and [Prelude.evalMASTProp x] [Prelude.evalMASTProp y]])
+          (Prelude.MASTOr (x y)
+            [Prelude.or [Prelude.evalMASTProp x] [Prelude.evalMASTProp y]]))))
+    
+    
+    (data MASTTree ()
+      (MASTSuccess)
+      (MASTFailure)
+      (MASTIf (con Prelude.MASTProp)
+              (con Prelude.MASTTree)
+              (con Prelude.MASTTree)))
+    
+    
+    (data MASTPath ()
+      (MASTPathSuccess)
+      (MASTPathFailure)
+      (MASTPathIfTrue (con Prelude.MASTProp)
+                      (con Prelude.MASTPath)
+                      (bytestring))
+      (MASTPathIfFalse (con Prelude.MASTProp)
+                       (bytestring)
+                       (con Prelude.MASTPath)))
+    
+    
+    (declare evalMASTPath
+      (fun (con Prelude.MASTPath) (con Prelude.Bool)))
+    (define evalMASTPath
+      (lam m
+        (case m
+          (Prelude.MASTPathSuccess () (con Prelude.True))
+          (Prelude.MASTPathFailure () (con Prelude.False))
+          (Prelude.MASTPathIfTrue (test t f)
+            (case [Prelude.evalMASTProp test]
+              (Prelude.True () [Prelude.evalMASTPath t])
+              (Prelude.False () (con Prelude.False))))
+          (Prelude.MASTPathIfFalse (test t f)
+            (case [Prelude.evalMASTProp test]
+              (Prelude.True () (con Prelude.False))
+              (Prelude.False () [Prelude.evalMASTPath f]))))))
+    
+    
+    (declare hashMASTProp
+      (fun (con Prelude.MASTProp) (bytestring)))
+    (define hashMASTProp
+      (lam m
+        (case m
+          (Prelude.MASTNot (x)
+            (builtin sha2_256
+              (builtin concatenate #00 [Prelude.hashMASTProp x])))
+          (Prelude.MASTAnd (x y)
+            (builtin sha2_256
+              (builtin concatenate #01
+                (builtin concatenate
+                  [Prelude.hashMASTProp x]
+                  [Prelude.hashMASTProp y]))))
+          (Prelude.MASTOr (x y)
+            (builtin sha2_256
+              (builtin concatenate #02
+                (builtin concatenate
+                  [Prelude.hashMASTProp x]
+                  [Prelude.hashMASTProp y])))))))
+    
+    
+    (declare hashMASTTree
+      (fun (con Prelude.MASTTree) (bytestring)))
+    (define hashMASTTree
+      (lam m
+        (case m
+          (Prelude.MASTSuccess () #00)
+          (Prelude.MASTFailure () #01)
+          (Prelude.MASTIf (test t f)
+            (builtin sha2_256
+              (builtin concatenate #02
+                (builtin concatenate
+                  [Prelude.hashMASTTree t]
+                  [Prelude.hashMASTTree f])))))))
+    
+    
+    (declare hashMASTPath
+      (fun (con Prelude.MASTPath) (bytestring)))
+    (define hashMASTPath
+      (lam m
+        (case m
+          (Prelude.MASTPathSuccess () #00)
+          (Prelude.MASTPathFailure () #01)
+          (Prelude.MASTPathIfTrue (test t fhash)
+            (builtin sha2_256
+              (builtin concatenate #02
+                (builtin concatenate
+                  [Prelude.hashMASTPath t]
+                  fhash))))
+          (Prelude.MASTPathIfFalse (test thash f)
+            (builtin sha2_256
+              (builtin concatenate #02
+                (builtin concatenate
+                  thash
+                  [Prelude.hashMASTPath f])))))))
+    
+    
+    (declare checkMAST
+      (fun (bytestring)
+           (fun (con Prelude.MASTPath)
+                (con Prelude.Bool))))
+    (define checkMAST
+      (lam hash (lam path
+        (case [Prelude.evalMASTPath path]
+          (Prelude.False () (con Prelude.False))
+          (Prelude.True ()
+            (builtin equalsByteString
+              hash
+              [Prelude.hashMASTPath path]))))))))

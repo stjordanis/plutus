@@ -26,7 +26,11 @@ import qualified Data.ByteString.Lazy as BS
 
 
 
-data CKFrame = InLet (Scope TermF)
+data CKFrame = InIsaL Term
+             | InIsaR Term
+             | InAbst
+             | InInstL Term
+             | InInstR Term
              | InAppLeft Term
              | InAppRight Term
              | InCon QualifiedConstructor [Term] [Term]
@@ -34,12 +38,12 @@ data CKFrame = InLet (Scope TermF)
              | InSuccess
              | InBind (Scope TermF)
              | InBuiltin String [Term] [Term]
-             | InIsFun
-             | InIsCon
-             | InIsConName QualifiedConstructor
-             | InIsInt
-             | InIsFloat
-             | InIsByteString
+             | InFunTL Term
+             | InFunTR Term
+             | InConT QualifiedConstructor [Term] [Term]
+             | InCompT
+             | InAppTL Term
+             | InAppTR Term
 
 type CKStack = [CKFrame]
 
@@ -57,15 +61,19 @@ data BlockChainInfo =
 rec :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
 rec 0 _ _ _ _ = Left "Out of petrol."
 rec _ _ _ _ (Var x) =
-  Right (Var x)
+  Left ("Unbound variable: " ++ name x)
 rec petrol bci denv stk (In (Decname n)) =
   case lookup n denv of
     Nothing ->
       Left ("Unknown constant/defined term: " ++ prettyQualifiedName n)
     Just m ->
       ret (petrol - 1) bci denv stk m
-rec petrol bci denv stk (In (Let m sc)) =
-  rec (petrol - 1) bci denv (InLet sc : stk) (instantiate0 m)
+rec petrol bci denv stk (In (Isa m a)) =
+  rec (petrol - 1) bci denv (InIsaL (instantiate0 a) : stk) (instantiate0 m)
+rec petrol bci denv stk (In (Abst m)) =
+  rec (petrol - 1) bci denv (InAbst: stk) (instantiate0 m)
+rec petrol bci denv stk (In (Inst m a)) =
+  rec (petrol - 1) bci denv (InInstL (instantiate0 a) : stk) (instantiate0 m)
 rec petrol bci denv stk m@(In (Lam _)) =
   ret (petrol - 1) bci denv stk m
 rec petrol bci denv stk (In (App f x)) =
@@ -102,18 +110,28 @@ rec petrol bci denv stk (In (Builtin n [])) =
       ret (petrol - 1) bci denv stk m'
 rec petrol bci denv stk (In (Builtin n (m:ms))) =
   rec (petrol - 1) bci denv (InBuiltin n [] (map instantiate0 ms) : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsFun m)) =
-  rec (petrol -1) bci denv (InIsFun : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsCon m)) =
-  rec (petrol -1) bci denv (InIsCon : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsConName qc m)) =
-  rec (petrol -1) bci denv (InIsConName qc : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsInt m)) =
-  rec (petrol -1) bci denv (InIsInt : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsFloat m)) =
-  rec (petrol -1) bci denv (InIsFloat : stk) (instantiate0 m)
-rec petrol bci denv stk (In (IsByteString m)) =
-  rec (petrol -1) bci denv (InIsByteString : stk) (instantiate0 m)
+rec petrol bci denv stk (In (DecnameT qn)) =
+  ret (petrol - 1) bci denv stk (In (DecnameT qn))
+rec petrol bci denv stk (In (FunT a b)) =
+  rec (petrol - 1) bci denv (InFunTL (instantiate0 b) : stk) (instantiate0 a)
+rec petrol bci denv stk (In (ConT qc [])) =
+  ret (petrol - 1) bci denv stk (In (ConT qc []))
+rec petrol bci denv stk (In (ConT qc (a:as))) =
+  rec (petrol - 1) bci denv (InConT qc [] (map instantiate0 as) : stk) (instantiate0 a)
+rec petrol bci denv stk (In (CompT a)) =
+  rec (petrol - 1) bci denv (InCompT : stk) (instantiate0 a)
+rec petrol bci denv stk (In (ForallT k sc)) =
+  ret (petrol - 1) bci denv stk (In (ForallT k sc))
+rec petrol bci denv stk (In ByteStringT) =
+  ret (petrol - 1) bci denv stk (In ByteStringT)
+rec petrol bci denv stk (In IntegerT) =
+  ret (petrol - 1) bci denv stk (In IntegerT)
+rec petrol bci denv stk (In FloatT) =
+  ret (petrol - 1) bci denv stk (In FloatT)
+rec petrol bci denv stk (In (LamT k sc)) =
+  ret (petrol - 1) bci denv stk (In (LamT k sc))
+rec petrol bci denv stk (In (AppT f a)) =
+  rec (petrol - 1) bci denv (InAppTL (instantiate0 a) : stk) (instantiate0 f)
 
 
 
@@ -122,8 +140,16 @@ rec petrol bci denv stk (In (IsByteString m)) =
 ret :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
 ret 0 _ _ _ _ = Left "Out of petrol."
 ret _ _ _ [] tm = Right tm
-ret petrol bci denv (InLet sc : stk) m =
-  rec (petrol - 1) bci denv stk (instantiate sc [m])
+ret petrol bci denv (InIsaL a : stk) m' =
+  rec (petrol - 1) bci denv (InIsaR m' : stk) a
+ret petrol bci denv (InIsaR m' : stk) a' =
+  ret (petrol - 1) bci denv stk (isaH m' a')
+ret petrol bci denv (InAbst : stk) m =
+  ret (petrol - 1) bci denv stk m
+ret petrol bci denv (InInstL a : stk) m' =
+  rec (petrol - 1) bci denv (InInstR m' : stk) a
+ret petrol bci denv (InInstR m' : stk) a' =
+  ret (petrol - 1) bci denv stk (instH m' a')
 ret petrol bci denv (InAppLeft x : stk) f =
   rec (petrol - 1) bci denv (InAppRight f : stk) x
 ret petrol bci denv (InAppRight f : stk) x =
@@ -162,31 +188,20 @@ ret petrol bci denv (InBuiltin n revls rs : stk) m =
         ret (petrol - 1) bci denv stk m'
     m':rs' ->
       rec (petrol - 1) bci denv (InBuiltin n (m:revls) rs' : stk) m'
-ret petrol bci denv (InIsFun : stk) m =
-  case m of
-    In (Lam _) -> ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
-ret petrol bci denv (InIsCon : stk) m =
-  case m of
-    In (Con _ _) -> ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
-ret petrol bci denv (InIsConName qc : stk) m =
-  case m of
-    In (Con qc' _) | qc == qc' ->
-      ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
-ret petrol bci denv (InIsInt : stk) m =
-  case m of
-    In (PrimInt _) -> ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
-ret petrol bci denv (InIsFloat : stk) m =
-  case m of
-    In (PrimFloat _) -> ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
-ret petrol bci denv (InIsByteString : stk) m =
-  case m of
-    In (PrimByteString _) -> ret (petrol - 1) bci denv stk (boolToTerm True)
-    _ -> ret (petrol - 1) bci denv stk (boolToTerm False)
+ret petrol bci denv (InFunTL b : stk) a' =
+  rec (petrol - 1) bci denv (InFunTR a' : stk) b
+ret petrol bci denv (InFunTR a' : stk) b' =
+  ret (petrol - 1) bci denv stk (funTH a' b')
+ret petrol bci denv (InConT qc revas' [] : stk) a' =
+  ret (petrol - 1) bci denv stk (conTH qc (reverse (a':revas')))
+ret petrol bci denv (InConT qc revas' (a2:as) : stk) a' =
+  rec (petrol - 1) bci denv (InConT qc (a':revas') as : stk) a2
+ret petrol bci denv (InCompT : stk) a' = 
+  ret (petrol - 1) bci denv stk (compTH a')
+ret petrol bci denv (InAppTL a : stk) f' =
+  rec (petrol - 1) bci denv (InAppTR f' : stk) a
+ret petrol bci denv (InAppTR f' : stk) a' =
+  ret (petrol - 1) bci denv stk (appTH f' a')
 
 
 

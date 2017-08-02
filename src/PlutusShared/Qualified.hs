@@ -24,7 +24,7 @@ data QualifiedName = QualifiedName String String
 
 prettyQualifiedName :: QualifiedName -> String
 prettyQualifiedName (QualifiedName l n) =
-  "(qual " ++ l ++ " " ++ n ++ ")"
+  l ++ "." ++ n
 
 instance ToJS QualifiedName where
   toJS (QualifiedName l n) =
@@ -38,7 +38,7 @@ data QualifiedConstructor = QualifiedConstructor String String
 
 prettyQualifiedConstructor :: QualifiedConstructor -> String
 prettyQualifiedConstructor (QualifiedConstructor l c) =
-  "(qualcon " ++ l ++ " " ++ c ++ ")"
+  l ++ "." ++ c
 
 instance ToJS QualifiedConstructor where
   toJS (QualifiedConstructor l c) =

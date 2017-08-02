@@ -37,6 +37,24 @@ import GHC.Generics hiding (Constructor)
 
 
 
+
+
+data Kind = TypeK | FunK Kind Kind
+
+instance ToJS Kind where
+  toJS TypeK = JSABT "TypeK" []
+  toJS (FunK k k') = JSABT "FunK" [toJS k, toJS k']
+
+prettyKind :: Kind -> String
+prettyKind TypeK = "(type)"
+prettyKind (FunK k k') =
+  "(fun "
+    ++ prettyKind k
+    ++ " "
+    ++ prettyKind k'
+    ++ ")"
+
+
 -- | There are ten kinds of terms, declared names @decname[n]@, let
 -- expressions @let(e1;x.e2)@, lambdas @lam(x.e)@, application @app(e1;e2)@,
 -- constructor terms @con[n](e*)@, case expressions @case(e;c*)@, success
@@ -44,8 +62,14 @@ import GHC.Generics hiding (Constructor)
 -- binds @bind(e1;x.e2)@, and finally, built-ins @builtin[n](e*)@.
 
 data TermF r
-  = Decname QualifiedName
-  | Let r r
+  = 
+    
+    -- Terms
+    
+    Decname QualifiedName
+  | Isa r r
+  | Abst r
+  | Inst r r
   | Lam r
   | App r r
   | Con QualifiedConstructor [r]
@@ -60,12 +84,21 @@ data TermF r
   | PrimFloat Float
   | PrimByteString BS.ByteString
   | Builtin String [r]
-  | IsFun r
-  | IsCon r
-  | IsConName QualifiedConstructor r
-  | IsInt r
-  | IsFloat r
-  | IsByteString r
+  
+  
+    -- Types
+  
+  | DecnameT QualifiedName
+  | FunT r r
+  | ConT QualifiedConstructor [r]
+  | CompT r
+  | ForallT Kind r
+  | ByteStringT
+  | IntegerT
+  | FloatT
+  | LamT Kind r
+  | AppT r r
+  
   deriving (Functor,Foldable,Traversable,Generic)
 
 
@@ -93,8 +126,14 @@ type Clause = ClauseF (Scope TermF)
 decnameH :: QualifiedName -> Term
 decnameH n = In (Decname n)
 
-letH :: Term -> String -> Term -> Term
-letH m x n = In (Let (scope [] m) (scope [x] n))
+isaH :: Term -> Term -> Term
+isaH m a = In (Isa (scope [] m) (scope [] a))
+
+abstH :: String -> Term -> Term
+abstH x m = In (Abst (scope [x] m))
+
+instH :: Term -> Term -> Term
+instH m a = In (Inst (scope [] m) (scope [] a))
 
 lamH :: String -> Term -> Term
 lamH v b = In (Lam (scope [v] b))
@@ -141,23 +180,37 @@ primByteStringH x = In (PrimByteString x)
 builtinH :: String -> [Term] -> Term
 builtinH n ms = In (Builtin n (map (scope []) ms))
 
-isFunH :: Term -> Term
-isFunH m = In (IsFun (scope [] m))
+decnameTH :: QualifiedName -> Term
+decnameTH qn = In (DecnameT qn)
 
-isConH :: Term -> Term
-isConH m = In (IsCon (scope [] m))
+funTH :: Term -> Term -> Term
+funTH a b = In (FunT (scope [] a) (scope [] b))
 
-isConNameH :: QualifiedConstructor -> Term -> Term
-isConNameH qc m = In (IsConName qc (scope [] m))
+conTH :: QualifiedConstructor -> [Term] -> Term
+conTH qc as = In (ConT qc (map (scope []) as))
 
-isIntH :: Term -> Term
-isIntH m = In (IsInt (scope [] m))
+compTH :: Term -> Term
+compTH a = In (CompT (scope [] a))
 
-isFloatH :: Term -> Term
-isFloatH m = In (IsFloat (scope [] m))
+forallTH :: String -> Kind -> Term -> Term
+forallTH x k a = In (ForallT k (scope [x] a))
 
-isByteStringH :: Term -> Term
-isByteStringH m = In (IsByteString (scope [] m))
+byteStringTH :: Term
+byteStringTH = In ByteStringT
+
+integerTH :: Term
+integerTH = In IntegerT
+
+floatTH :: Term
+floatTH = In FloatT
+
+lamTH :: String -> Kind -> Term -> Term
+lamTH x k a = In (LamT k (scope [x] a))
+
+appTH :: Term -> Term -> Term
+appTH f a = In (AppT (scope [] f) (scope [] a))
+
+
 
 
 
@@ -174,16 +227,23 @@ instance Parens Term where
   parenRec (Var v) =
     name v
   parenRec (In (Decname n)) =
-    "(defined " ++ prettyQualifiedName n
+    prettyQualifiedName n
+  parenRec (In (Isa m a)) =
+    "(isa "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 a)
       ++ ")"
-  parenRec (In (Let m n)) =
-    "(let "
-    ++ parenthesize Nothing (instantiate0 m)
-    ++ " "
-    ++ head (names n)
-    ++ " "
-    ++ parenthesize Nothing (body n)
-    ++ ")"
+  parenRec (In (Abst m)) =
+    "(abs "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (In (Inst m a)) =
+    "(inst "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 a)
+      ++ ")"
   parenRec (In (Lam sc)) =
     "(lam "
       ++ head (names sc)
@@ -191,11 +251,11 @@ instance Parens Term where
       ++ parenthesize Nothing (body sc)
       ++ ")"
   parenRec (In (App f a)) =
-    "(app "
+    "["
       ++ parenthesize Nothing (instantiate0 f)
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
-      ++ ")"
+      ++ "]"
   parenRec (In (Con c as)) =
     "(con "
       ++ prettyQualifiedConstructor c
@@ -223,13 +283,13 @@ instance Parens Term where
       ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
   parenRec (In Failure ) =
-    "failure"
+    "(failure)"
   parenRec (In TxHash) =
-    "txhash"
+    "(txhash)"
   parenRec (In BlockNum) =
-    "blocknum"
+    "(blocknum)"
   parenRec (In BlockTime) =
-    "blocktime"
+    "(blocktime)"
   parenRec (In (Bind m sc)) =
     "(bind "
     ++ parenthesize Nothing (instantiate0 m)
@@ -239,49 +299,63 @@ instance Parens Term where
     ++ parenthesize Nothing (body sc)
     ++ ")"
   parenRec (In (PrimInt i)) =
-    "(primInt "
-      ++ show i
-      ++ ")"
+    show i
   parenRec (In (PrimFloat f)) =
-    "(primFloat "
-      ++ show f
-      ++ ")"
+    show f
   parenRec (In (PrimByteString bs)) =
-    "(primByteString "
-      ++ prettyByteString bs
-      ++ ")"
+    prettyByteString bs
   parenRec (In (Builtin n ms)) =
-    "(buildin "
+    "(builtin "
       ++ n
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) ms)
       ++ ")"
-  parenRec (In (IsFun m)) =
-    "(isFun "
-      ++ parenthesize Nothing (instantiate0 m)
+  parenRec (In (DecnameT qn)) =
+    prettyQualifiedName qn
+  parenRec (In (FunT a b)) =
+    "(fun "
+      ++ parenthesize Nothing (instantiate0 a)
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 b)
       ++ ")"
-  parenRec (In (IsCon m)) =
-    "(isCon "
-      ++ parenthesize Nothing (instantiate0 m)
-      ++ ")"
-  parenRec (In (IsConName qc m)) =
-    "(isConName "
+  parenRec (In (ConT qc as)) =
+    "(con "
       ++ prettyQualifiedConstructor qc
       ++ " "
-      ++ parenthesize Nothing (instantiate0 m)
+      ++ unwords (map (parenthesize Nothing . instantiate0) as)
       ++ ")"
-  parenRec (In (IsInt m)) =
-    "(isInt "
-      ++ parenthesize Nothing (instantiate0 m)
+  parenRec (In (CompT a)) =
+    "(comp "
+      ++ parenthesize Nothing (instantiate0 a)
       ++ ")"
-  parenRec (In (IsFloat m)) =
-    "(isFloat "
-      ++ parenthesize Nothing (instantiate0 m)
+  parenRec (In (ForallT k sc)) =
+    "(forall "
+      ++ head (names sc)
+      ++ " "
+      ++ prettyKind k
+      ++ " "
+      ++ parenthesize Nothing (body sc)
       ++ ")"
-  parenRec (In (IsByteString m)) =
-    "(isByteString "
-      ++ parenthesize Nothing (instantiate0 m)
+  parenRec (In ByteStringT) =
+    "(bytestring)"
+  parenRec (In IntegerT) =
+    "(integer)"
+  parenRec (In FloatT) =
+    "(float)"
+  parenRec (In (LamT k sc)) =
+    "(lam "
+      ++ head (names sc)
+      ++ " "
+      ++ prettyKind k
+      ++ " "
+      ++ parenthesize Nothing (body sc)
       ++ ")"
+  parenRec (In (AppT f a)) =
+    "["
+      ++ parenthesize Nothing (instantiate0 f)
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 a)
+      ++ "]"
 
 
 
@@ -326,10 +400,17 @@ instance ToJS Term where
         error "There should never be meta vars in a JS-able term."
       go (In (Decname n)) =
         return $ JSABT "Decname" [toJS n]
-      go (In (Let m sc)) =
+      go (In (Isa m a)) =
         do m' <- go (instantiate0 m)
-           (x,b) <- withVar $ \_ -> go (body sc)
-           return $ JSABT "Let" [m', JSScope [x] b]
+           a' <- go (instantiate0 a)
+           return $ JSABT "Isa" [m', a']
+      go (In (Abst m)) =
+        do m' <- go (instantiate0 m)
+           return $ JSABT "Abs" [m']
+      go (In (Inst m a)) =
+        do m' <- go (instantiate0 m)
+           a' <- go (instantiate0 a)
+           return $ JSABT "Inst" [m', a']
       go (In (Lam sc)) =
         do (x,b) <- withVar $ \_ -> go (body sc)
            return $ JSABT "Lam" [JSScope [x] b]
@@ -368,24 +449,34 @@ instance ToJS Term where
       go (In (Builtin n ms)) =
         do ms' <- mapM (go . instantiate0) ms
            return $ JSABT "Builtin" [JSString n, JSArray ms']
-      go (In (IsFun m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsFun" [m']
-      go (In (IsCon m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsCon" [m']
-      go (In (IsConName qc m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsConName" [toJS qc, m']
-      go (In (IsInt m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsInt" [m']
-      go (In (IsFloat m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsFloat" [m']
-      go (In (IsByteString m)) =
-        do m' <- go (instantiate0 m)
-           return $ JSABT "IsByteString" [m']
+      go (In (DecnameT qn)) =
+        return $ JSABT "DecnameT" [toJS qn]
+      go (In (FunT a b)) =
+        do a' <- go (instantiate0 a)
+           b' <- go (instantiate0 b)
+           return $ JSABT "FunT" [a',b']
+      go (In (ConT qc as)) =
+        do as' <- mapM (go . instantiate0) as
+           return $ JSABT "ConT" [toJS qc, JSArray as']
+      go (In (CompT a)) =
+        do a' <- go (instantiate0 a)
+           return $ JSABT "CompT" [a']
+      go (In (ForallT k sc)) =
+        do (x,a) <- withVar $ \_ -> go (body sc)
+           return $ JSABT "ForallT" [toJS k, JSScope [x] a]
+      go (In ByteStringT) =
+        return $ JSABT "ByteStringT" []
+      go (In IntegerT) =
+        return $ JSABT "IntegerT" []
+      go (In FloatT) =
+        return $ JSABT "FloatT" []
+      go (In (LamT k sc)) =
+        do (x,a) <- withVar $ \_ -> go (body sc)
+           return $ JSABT "LamT" [toJS k, JSScope [x] a]
+      go (In (AppT f a)) =
+        do f' <- go (instantiate0 f)
+           a' <- go (instantiate0 a)
+           return $ JSABT "AppT" [f', a']
       
       goClause :: Clause -> State (Int,[String]) JSABT
       goClause (Clause c sc) =

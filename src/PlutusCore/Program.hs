@@ -23,23 +23,70 @@ import GHC.Generics
 
 
 
--- | A `Declaration` can declare exported and local terms, and also exported
--- and local constructors.
+data KindSig = KindSig String Kind
 
-data Declaration = Export String Term
-                 | Local String Term
-                 | ExportConstructor String
-                 | LocalConstructor String
+prettyKindSig :: KindSig -> String
+prettyKindSig (KindSig x k) =
+  "("
+    ++ x
+    ++ " "
+    ++ prettyKind k
+    ++ ")"
+
+data Alt = Alt String [Term]
+
+prettyAlt :: Alt -> String
+prettyAlt (Alt c ts) =
+  "("
+    ++ c
+    ++ " "
+    ++ unwords (map (parenthesize Nothing) ts)
+    ++ ")"
+
+
+data Declaration = DataDeclaration String [KindSig] [Alt]
+                 | TypeDeclaration String Term
+                 | TermDeclaration String Term
+                 | TermDefinition String Term
 
 prettyDeclaration :: Declaration -> String
-prettyDeclaration (Export n m) =
-  "(exp " ++ n ++ " " ++ pretty m ++ ")"
-prettyDeclaration (Local n m) =
-  "(loc " ++ n ++ " " ++ pretty m ++ ")"
-prettyDeclaration (ExportConstructor c) =
-  "(expcon " ++ c ++ ")"
-prettyDeclaration (LocalConstructor c) =
-  "(loccon " ++ c ++ ")"
+prettyDeclaration (DataDeclaration c ks alts) =
+  "(data "
+    ++ c
+    ++ " "
+      ++ "("
+      ++ unwords (map prettyKindSig ks)
+      ++ ")"
+    ++ " "
+    ++ unwords (map prettyAlt alts)
+    ++ ")"
+prettyDeclaration (TypeDeclaration n tv) =
+  "(type "
+    ++ n
+    ++ " "
+    ++ parenthesize Nothing tv
+    ++ ")"
+prettyDeclaration (TermDeclaration n t) =
+  "(declare "
+    ++ n
+    ++ " "
+    ++ parenthesize Nothing t
+    ++ ")"
+prettyDeclaration (TermDefinition n v) =
+  "(define "
+    ++ n
+    ++ " "
+    ++ parenthesize Nothing v
+    ++ ")"
+
+
+
+type Imports = [String]
+
+data TypeExport = TypeNameExport String
+                | TypeConstructorExport String [String]
+
+data Exports = Exports [TypeExport] [String]
 
 
 
@@ -47,11 +94,43 @@ prettyDeclaration (LocalConstructor c) =
 
 -- | A `Module` is a named collection of declarations.
 
-data Module = Module String [Declaration]
+data Module = Module String Imports Exports [Declaration]
 
 prettyModule :: Module -> String
-prettyModule (Module l decls) =
-  "(module " ++ l ++ " " ++ unwords (map prettyDeclaration decls) ++ ")"
+prettyModule (Module l impd expd decls) =
+  "(module "
+    ++ l
+    ++ " "
+    ++ prettyImports impd
+    ++ " "
+    ++ prettyExports expd
+    ++ " "
+    ++ unwords (map prettyDeclaration decls)
+    ++ ")"
+  where
+    prettyImports ls =
+      "(imported "
+        ++ unwords ls
+        ++ ")"
+    prettyExports (Exports typeExports names) =
+      "(exported "
+          ++ "("
+          ++ unwords (map prettyExport typeExports)
+          ++ ")"
+        ++ " "
+          ++ "("
+          ++ unwords names
+          ++ ")"
+        ++ ")"
+    prettyExport (TypeNameExport n) = n
+    prettyExport (TypeConstructorExport c cs) =
+      "("
+        ++ c
+        ++ " "
+          ++ "("
+          ++ unwords cs
+          ++ ")"
+        ++ ")"
 
 
 

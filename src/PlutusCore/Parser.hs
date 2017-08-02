@@ -11,6 +11,7 @@
 
 module PlutusCore.Parser where
 
+import PlutusCore.Program
 import PlutusCore.Term
 import PlutusShared.Qualified
 import Utils.ABT
@@ -18,6 +19,7 @@ import Utils.Vars
 
 import qualified Data.ByteString.Lazy as BS
 import Data.Char (digitToInt,toUpper)
+import Data.List (foldl')
 import Data.Word
 import Text.Parsec
 import qualified Text.Parsec.Token as Token
@@ -27,63 +29,6 @@ import qualified Text.Parsec.Token as Token
 
 
 
-
--- | Plutus Core's syntax is s-expression based, intended to be as easy to
--- parse as possible. The grammar is given below in BNF.
---
---   <qualName> ::= "(" "qual" <moduleName> <termName> ")"
---   <qualCon> ::= "(" "qualcon" <moduleName> <conName> ")"
---   <term> ::= <variable>
---            | <decname>
---            | <letTerm>
---            | <lambda>
---            | <application>
---            | <conData>
---            | <caseTerm>
---            | <success>
---            | <failure>
---            | <txhash>
---            | <blocknum>
---            | <blocktime>
---            | <bindTerm>
---            | <primInt>
---            | <primFloat>
---            | <primByteString>
---            | <isFun>
---            | <isCon>
---            | <isConName>
---            | <isInt>
---            | <isFloat>
---            | <isByteString>
---   <decname> ::= "(" "decname" <qualName> ")"
---   <letTerm> ::= "(" "let" <term> <variable> <term> ")"
---   <lambda> ::= "(" "lam" <variable> <term> ")"
---   <application> ::= "(" "app" <term> <term> ")"
---   <conData> ::= "(" "con" <qualCon> <term>* ")"
---   <caseTerm> ::= "(" "case" <term> <clause>* ")"
---   <success> ::= "(" "success" <term> ")"
---   <failure> ::= "failure"
---   <txhash> ::= "txhash"
---   <blocknum> ::= "blocknum"
---   <blocktime> ::= "blocktime"
---   <bindTerm> ::= "(" "bind" <term> <variable> <term> ")"
---   <primInt> ::= "(" "primInt" <int> ")"
---   <primFloat> ::= "(" "primFloat" <float> ")"
---   <primByteString> ::= "(" "primByteString" <byteString> ")"
---   <isFun> ::= "(" "isFun" <term> ")"
---   <isCon> ::= "(" "isCon" <term> ")"
---   <isConName> ::= "(" "isConName" <qualCon> <term> ")"
---   <isInt> ::= "(" "isInt" <term> ")"
---   <isFloat> ::= "(" "isFloat" <term> ")"
---   <isByteString> ::= "(" "isByteString" <term> ")"
-
---   <clause> ::= "(" "cl" <qualCon> "(" <variable>* ")" <term> ")"
---   <program> ::= "(" "program" <module>* ")"
---   <module> ::= "(" "module" <moduleName> <declaration>* ")"
---   <declaration> ::= "(" "exp" <termName> <term> ")"
---                   | "(" "loc" <termName> <term> ")"
---                   | "(" "expcon" <conName> ")"
---                   | "(" "loccon" <conName> ")"
 
 
 
@@ -107,12 +52,15 @@ languageDef = Token.LanguageDef
                     ,"isFun","isCon","isConName","isInt","isFloat","isByteString"
                     ,"program","module","exp","loc","expcon","loccon"
                     ]
-                , Token.reservedOpNames = []
+                , Token.reservedOpNames = ["."]
                 , Token.caseSensitive = True
                 }
 
 tokenParser :: Token.TokenParser st
 tokenParser = Token.makeTokenParser languageDef
+
+symbol :: String -> Parsec String u String
+symbol = Token.symbol tokenParser
 
 lexeme :: Parsec String u a -> Parsec String u a
 lexeme = Token.lexeme tokenParser
@@ -131,6 +79,9 @@ parens = Token.parens tokenParser
 
 braces :: Parsec String u a -> Parsec String u a
 braces = Token.braces tokenParser
+
+brackets :: Parsec String u a -> Parsec String u a
+brackets = Token.brackets tokenParser
 
 whiteSpace :: Parsec String u ()
 whiteSpace = Token.whiteSpace tokenParser
@@ -239,11 +190,88 @@ nybble =
 
 
 
+
+variableName :: Parsec String u String
+variableName =
+  lexeme $ do
+    first <- lower
+    rest <- many (alphaNum <|> oneOf "_'")
+    return $ first:rest
+
+
+
+declaredName :: Parsec String u String
+declaredName =
+  lexeme $ do
+    first <- lower
+    rest <- many (alphaNum <|> oneOf "_'")
+    return $ first:rest
+
+
+
+conName :: Parsec String u String
+conName =
+  lexeme $ do
+    first <- upper
+    rest <- many (alphaNum <|> oneOf "_'")
+    return $ first:rest
+
+
+
+moduleName :: Parsec String u String
+moduleName =
+  lexeme $ do
+    first <- upper
+    rest <- many (alphaNum <|> oneOf "_'")
+    return $ first:rest
+
+
+
+qualName :: Parsec String u QualifiedName
+qualName =
+  lexeme $ do
+    l <- moduleName
+    reservedOp "."
+    n <- declaredName
+    return $ QualifiedName l n
+
+
+
+qualCon :: Parsec String u QualifiedConstructor
+qualCon =
+  lexeme $ do
+    l <- moduleName
+    reservedOp "."
+    c <- conName
+    return $ QualifiedConstructor l c
+
+
+
+
+
+
+construct :: String -> Parsec String u a -> Parsec String u a
+construct n p =
+  do try $ do
+       _ <- symbol "("
+       _ <- symbol n
+       return ()
+     x <- p
+     _ <- symbol ")"
+     return x
+
+
+
+
+
+
 term :: Parsec String u Term
 term =
       variable
   <|> decname
-  <|> letTerm
+  <|> annotation
+  <|> abst
+  <|> inst
   <|> lambda
   <|> application
   <|> conData
@@ -254,65 +282,12 @@ term =
   <|> blocknum
   <|> blocktime
   <|> bindTerm
-  <|> primInt
   <|> primFloat
+  <|> primInt
   <|> primByteString
-  <|> isFun
-  <|> isCon
-  <|> isConName
-  <|> isInt
-  <|> isFloat
-  <|> isByteString
+  <|> builtin
 
 
-
-
-
-variableName :: Parsec String u String
-variableName =
-  do _ <- lookAhead (lower <|> char '_')
-     identifier
-
-
-
-termName :: Parsec String u String
-termName =
-  do _ <- lookAhead (lower <|> char '_')
-     identifier
-
-
-
-conName :: Parsec String u String
-conName =
-  do _ <- lookAhead upper
-     identifier
-
-
-
-moduleName :: Parsec String u String
-moduleName =
-  do _ <- lookAhead upper
-     identifier
-
-
-
-qualName :: Parsec String u QualifiedName
-qualName =
-  parens $ do
-    reserved "qual"
-    l <- moduleName
-    n <- termName
-    return $ QualifiedName l n
-
-
-
-qualCon :: Parsec String u QualifiedConstructor
-qualCon =
-  parens $ do
-    reserved "qualcon"
-    l <- moduleName
-    c <- conName
-    return $ QualifiedConstructor l c
 
 
 
@@ -325,28 +300,41 @@ variable =
 
 decname :: Parsec String u Term
 decname =
-  parens $ do
-    reserved "decname"
-    qn <- qualName
-    return $ decnameH qn
+  do qn <- qualName
+     return $ decnameH qn
 
 
 
-letTerm :: Parsec String u Term
-letTerm =
-  parens $ do
-    reserved "let"
+annotation :: Parsec String u Term
+annotation =
+  construct "isa" $ do
     m <- term
+    t <- typep
+    return $ isaH m t
+
+
+
+abst :: Parsec String u Term
+abst =
+  construct "abs" $ do
     x <- variableName
-    n <- term
-    return $ letH m x n
+    m <- term
+    return $ abstH x m
+
+
+
+inst :: Parsec String u Term
+inst =
+  construct "inst" $ do
+    m <- term
+    a <- typep
+    return $ instH m a
 
 
 
 lambda :: Parsec String u Term
 lambda =
-  parens $ do
-    reserved "lam"
+  construct "lam" $ do
     x <- variableName
     m <- term
     return $ lamH x m
@@ -355,18 +343,16 @@ lambda =
 
 application :: Parsec String u Term
 application =
-  parens $ do
-    reserved "app"
+  brackets $ do
     m <- term
-    n <- term
-    return $ appH m n
+    ns <- many1 term
+    return $ foldl' appH m ns
 
 
 
 conData :: Parsec String u Term
 conData =
-  parens $ do
-    reserved "con"
+  construct "con" $ do
     qc <- qualCon
     ms <- many term
     return $ conH qc ms
@@ -375,8 +361,7 @@ conData =
 
 caseTerm :: Parsec String u Term
 caseTerm =
-  parens $ do
-    reserved "case"
+  construct "case" $ do
     m <- term
     cs <- many clause
     return $ caseH m cs
@@ -386,7 +371,6 @@ caseTerm =
 clause :: Parsec String u Clause
 clause =
   parens $ do
-    reserved "cl"
     qc <- qualCon
     xs <- parens (many variableName)
     m <- term
@@ -396,8 +380,7 @@ clause =
 
 success :: Parsec String u Term
 success =
-  parens $ do
-    reserved "success"
+  construct "success" $ do
     m <- term
     return $ successH m
 
@@ -405,36 +388,35 @@ success =
 
 failure :: Parsec String u Term
 failure =
-  do reserved "failure"
-     return failureH
+  construct "failure" $ do
+    return failureH
 
 
 
 txhash :: Parsec String u Term
 txhash =
-  do reserved "txhash"
-     return txhashH
+  construct "txhash" $ do
+    return txhashH
 
 
 
 blocknum :: Parsec String u Term
 blocknum =
-  do reserved "blocknum"
-     return blocknumH
+  construct "blocknum" $ do
+    return blocknumH
 
 
 
 blocktime :: Parsec String u Term
 blocktime =
-  do reserved "blocktime"
-     return blocktimeH
+  construct "blocktime" $ do
+    return blocktimeH
 
 
 
 bindTerm :: Parsec String u Term
 bindTerm =
-  parens $ do
-    reserved "bind"
+  construct "bind" $ do
     m <- term
     x <- variableName
     n <- term
@@ -444,80 +426,250 @@ bindTerm =
 
 primInt :: Parsec String u Term
 primInt =
-  parens $ do
-    reserved "primInt"
-    i <- intLiteral
-    return $ primIntH i
+  do i <- intLiteral
+     return $ primIntH i
 
 
 
 primFloat :: Parsec String u Term
 primFloat =
-  parens $ do
-    reserved "primFloat"
-    f <- floatLiteral
-    return $ primFloatH f
+  do f <- try floatLiteral
+     return $ primFloatH f
 
 
 
 primByteString :: Parsec String u Term
 primByteString =
-  parens $ do
-    reserved "primByteString"
-    bs <- byteStringLiteral
-    return $ primByteStringH bs
+  do bs <- byteStringLiteral
+     return $ primByteStringH bs
+
+builtin :: Parsec String u Term
+builtin =
+  construct "builtin" $ do
+    x <- variableName
+    ns <- many term
+    return $ builtinH x ns
 
 
+typep :: Parsec String u Term
+typep =
+      variableT
+  <|> funT
+  <|> conT
+  <|> compT
+  <|> forallT
+  <|> bytestringT
+  <|> integerT
+  <|> floatT
+  <|> lamT
+  <|> appT
 
-isFun :: Parsec String u Term
-isFun =
-  parens $ do
-    reserved "isFun"
-    m <- term
-    return $ isFunH m
+variableT :: Parsec String u Term
+variableT =
+  do x <- variableName
+     return $ Var (Free (FreeVar x))
 
+funT :: Parsec String u Term
+funT =
+  construct "fun" $ do
+    a <- typep
+    b <- typep
+    return $ funTH a b
 
-
-isCon :: Parsec String u Term
-isCon =
-  parens $ do
-    reserved "isCon"
-    m <- term
-    return $ isConH m
-
-
-
-isConName :: Parsec String u Term
-isConName =
-  parens $ do
-    reserved "isConName"
+conT :: Parsec String u Term
+conT =
+  construct "con" $ do
     qc <- qualCon
-    m <- term
-    return $ isConNameH qc m
+    as <- many typep
+    return $ conTH qc as
+
+compT :: Parsec String u Term
+compT =
+  construct "comp" $ do
+    a <- typep
+    return $ compTH a
+
+forallT :: Parsec String u Term
+forallT =
+  construct "forall" $ do
+    x <- variableName
+    k <- kind
+    a <- typep
+    return $ forallTH x k a
+
+bytestringT :: Parsec String u Term
+bytestringT =
+  construct "bytestring" $ do
+    return $ byteStringTH
+
+integerT :: Parsec String u Term
+integerT =
+  construct "integer" $ do
+    return $ integerTH
+
+floatT :: Parsec String u Term
+floatT =
+  construct "float" $ do
+    return $ floatTH
+
+lamT :: Parsec String u Term
+lamT =
+  construct "lam" $ do
+    x <- variableName
+    k <- kind
+    a <- typep
+    return $ lamTH x k a
+
+appT :: Parsec String u Term
+appT =
+  brackets $ do
+    f <- typep
+    as <- many1 typep
+    return $ foldl' appTH f as
+
+
+kind :: Parsec String u Kind
+kind =
+      typeK
+  <|> funK
+
+typeK :: Parsec String u Kind
+typeK =
+  construct "type" $ do
+    return $ TypeK
+
+funK :: Parsec String u Kind
+funK =
+  construct "fun" $ do
+    k <- kind
+    k' <- kind
+    return $ FunK k k'
 
 
 
-isInt :: Parsec String u Term
-isInt =
+
+program :: Parsec String u Program
+program =
+  construct "program" $ do
+    ls <- many modle
+    return $ Program ls
+
+
+modle :: Parsec String u Module
+modle =
+  construct "module" $ do
+    l <- moduleName
+    impd <- imprts
+    expd <- exprts
+    decls <- many declaration
+    return $ Module l impd expd decls
+
+
+imprts :: Parsec String u Imports
+imprts =
+  construct "imported" $ do
+    ls <- many moduleName
+    return ls
+
+
+exprts :: Parsec String u Exports
+exprts =
+  construct "exported" $ do
+    typeExports <- parens (many typeExport)
+    ns <- parens (many variableName)
+    return $ Exports typeExports ns
+
+
+
+typeExport :: Parsec String u TypeExport
+typeExport =
+      typeNameExport
+  <|> typeConstructorExport
+
+
+
+typeNameExport :: Parsec String u TypeExport
+typeNameExport =
+  do x <- declaredName
+     return $ TypeNameExport x
+
+
+
+typeConstructorExport :: Parsec String u TypeExport
+typeConstructorExport =
   parens $ do
-    reserved "isInt"
-    m <- term
-    return $ isIntH m
+    c <- conName
+    cs <- parens (many conName)
+    return $ TypeConstructorExport c cs
 
 
 
-isFloat :: Parsec String u Term
-isFloat =
+declaration :: Parsec String u Declaration
+declaration =
+      dataDeclaration
+  <|> typeDeclaration
+  <|> termDeclaration
+  <|> termDefinition
+
+
+
+dataDeclaration :: Parsec String u Declaration
+dataDeclaration =
+  construct "data" $ do
+    c <- conName
+    ks <- parens (many kindsig)
+    alts <- many alt
+    return $ DataDeclaration c ks alts
+
+kindsig :: Parsec String u KindSig
+kindsig =
   parens $ do
-    reserved "isFloat"
-    m <- term
-    return $ isFloatH m
+    x <- variableName
+    k <- kind
+    return $ KindSig x k
 
-
-
-isByteString :: Parsec String u Term
-isByteString =
+alt :: Parsec String u Alt
+alt =
   parens $ do
-    reserved "isByteString"
-    m <- term
-    return $ isByteStringH m
+    c <- conName
+    ts <- many typep
+    return $ Alt c ts
+
+typeDeclaration :: Parsec String u Declaration
+typeDeclaration =
+  construct "type" $ do
+    n <- declaredName
+    tv <- typep
+    return $ TypeDeclaration n tv
+
+
+termDeclaration :: Parsec String u Declaration
+termDeclaration =
+  construct "declare" $ do
+    n <- declaredName
+    t <- typep
+    return $ TermDeclaration n t
+
+termDefinition :: Parsec String u Declaration
+termDefinition =
+  construct "define" $ do
+    n <- declaredName
+    v <- term
+    return $ TermDefinition n v
+
+
+
+
+
+
+parseProgram :: String -> Either String Program
+parseProgram str =
+  case parse (whiteSpace *> program <* eof) "(unknown)" str of
+    Left e -> Left (show e)
+    Right p -> Right p
+
+parseTerm :: String -> Either String Term
+parseTerm str =
+  case parse (whiteSpace *> term <* eof) "(unknown)" str of
+    Left e -> Left (show e)
+    Right p -> Right p
