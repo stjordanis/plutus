@@ -50,8 +50,8 @@ type CKStack = [CKFrame]
 data BlockChainInfo =
      BlockChainInfo
      { transactionHash :: BS.ByteString
-     , blockNumber :: Int
-     , blockTime :: Int
+     , blockNumber :: Integer
+     , blockTime :: Integer
      }
 
 
@@ -60,8 +60,8 @@ data BlockChainInfo =
 
 rec :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
 rec 0 _ _ _ _ = Left "Out of petrol."
-rec _ _ _ _ (Var x) =
-  Left ("Unbound variable: " ++ name x)
+rec petrol bci denv stk (Var x) =
+  ret (petrol - 1) bci denv stk (Var x) --Left ("Unbound variable: " ++ name x)
 rec petrol bci denv stk (In (Decname n)) =
   case lookup n denv of
     Nothing ->
@@ -91,12 +91,12 @@ rec petrol bci denv stk m@(In Failure) =
 rec petrol bci denv stk (In TxHash) =
   ret (petrol - 1) bci denv stk (primByteStringH (transactionHash bci))
 rec petrol bci denv stk (In BlockNum) =
-  ret (petrol - 1) bci denv stk (primIntH (blockNumber bci))
+  ret (petrol - 1) bci denv stk (primIntegerH (blockNumber bci))
 rec petrol bci denv stk (In BlockTime) =
-  ret (petrol - 1) bci denv stk (primIntH (blockTime bci))
+  ret (petrol - 1) bci denv stk (primIntegerH (blockTime bci))
 rec petrol bci denv stk (In (Bind m sc)) =
   rec (petrol - 1) bci denv (InBind sc : stk) (instantiate0 m)
-rec petrol bci denv stk m@(In (PrimInt _)) =
+rec petrol bci denv stk m@(In (PrimInteger _)) =
   ret (petrol - 1) bci denv stk m
 rec petrol bci denv stk m@(In (PrimFloat _)) =
   ret (petrol - 1) bci denv stk m

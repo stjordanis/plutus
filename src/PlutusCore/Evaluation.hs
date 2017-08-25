@@ -202,6 +202,13 @@ evaluate bci env ptrl m =
   in fst <$> result
   -}
 
+evaluateType :: QualifiedEnv -> Term -> Term
+evaluateType env m =
+  case evaluate undefined env (Petrol maxBound) m of
+    Right u -> u
+    Left e -> error (show e) `seq` undefined
+  
+
 ----------------------------------------------------------------------------
 -- Crypto
 ----------------------------------------------------------------------------

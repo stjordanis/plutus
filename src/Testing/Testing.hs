@@ -8,14 +8,20 @@
 
 module Testing.Testing where
 
+import PlutusCore.Contexts
+import PlutusCore.Elaboration
+import PlutusCore.Elaborator
 import PlutusCore.Evaluation
 import PlutusCore.EvaluatorTypes
+import PlutusCore.Judgments
 import PlutusCore.Parser
 import PlutusCore.Program
 import PlutusShared.Qualified
 
 import Utils.Pretty
+import qualified Utils.ProofDeveloper as PD
 
+import Data.Either.Combinators (mapLeft)
 import System.IO
 
 
@@ -35,7 +41,14 @@ extractDefinitions (Program modules) =
       [(QualifiedName l n , v)]
     declToDefinitions _ _ = []
 
-
+nominalContextToQualifiedEnv
+  :: NominalContext -> QualifiedEnv
+nominalContextToQualifiedEnv nomctx =
+  nomctx >>= nomJudgmentToEnv
+  where
+    nomJudgmentToEnv :: NominalJudgment -> QualifiedEnv
+    nomJudgmentToEnv (DefJ l n v) = [(QualifiedName l n, v)]
+    nomJudgmentToEnv _ = []
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
@@ -63,7 +76,12 @@ repl src0 = case loadProgram src0 of
       :: String -> Either String QualifiedEnv
     loadProgram src =
       do prog <- parseProgram src
-         return (extractDefinitions prog)
+         nomctx <- mapLeft PD.showElabError
+                     (runElaborator
+                       (PD.elaborator (ElabProgramJ prog)
+                         :: Elaborator NominalContext))
+         return (nominalContextToQualifiedEnv nomctx)
+         --return (extractDefinitions prog)
     
     {-
          (dctx,_)

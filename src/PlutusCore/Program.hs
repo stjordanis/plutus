@@ -9,6 +9,7 @@
 
 module PlutusCore.Program where
 
+import Utils.ABT
 import Utils.Pretty
 import Utils.Names
 import PlutusCore.Term
@@ -33,14 +34,14 @@ prettyKindSig (KindSig x k) =
     ++ prettyKind k
     ++ ")"
 
-data Alt = Alt String [Term]
+data Alt = Alt String [Scope TermF]
 
 prettyAlt :: Alt -> String
-prettyAlt (Alt c ts) =
+prettyAlt (Alt c tscs) =
   "("
     ++ c
     ++ " "
-    ++ unwords (map (parenthesize Nothing) ts)
+    ++ unwords (map (parenthesize Nothing . body) tscs)
     ++ ")"
 
 
@@ -112,14 +113,14 @@ prettyModule (Module l impd expd decls) =
       "(imported "
         ++ unwords ls
         ++ ")"
-    prettyExports (Exports typeExports names) =
+    prettyExports (Exports typeExports termExports) =
       "(exported "
           ++ "("
           ++ unwords (map prettyExport typeExports)
           ++ ")"
         ++ " "
           ++ "("
-          ++ unwords names
+          ++ unwords termExports
           ++ ")"
         ++ ")"
     prettyExport (TypeNameExport n) = n

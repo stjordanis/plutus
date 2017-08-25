@@ -92,8 +92,8 @@ whiteSpace = Token.whiteSpace tokenParser
 
 -- Parsers for literals
 
-intLiteral :: Parsec String u Int
-intLiteral = lexeme int <?> "int"
+integerLiteral :: Parsec String u Integer
+integerLiteral = lexeme integer <?> "integer"
 
 floatLiteral :: Parsec String u Float
 floatLiteral = lexeme floating <?> "float"
@@ -106,8 +106,8 @@ byteStringLiteral =
      return (BS.pack bytes))
   <?> "byteString"
 
-int :: Parsec String u Int
-int =
+integer :: Parsec String u Integer
+integer =
   do f <- sign
      n <- decimal
      return (f n)
@@ -117,18 +117,18 @@ sign =
       (char '-' >> return negate)
   <|> return id
 
-decimal :: Parsec String u Int
+decimal :: Parsec String u Integer
 decimal =
   do digits <- many1 digit
-     let n = foldl (\x d -> 10*x + digitToInt d) 0 digits
+     let n = foldl (\x d -> 10*x + toInteger (digitToInt d)) 0 digits
      seq n (return n)
 
 floating :: Parsec String u Float
 floating =
-  do n <- int
+  do n <- integer
      fractExponent n
 
-fractExponent :: Int -> Parsec String u Float
+fractExponent :: Integer -> Parsec String u Float
 fractExponent n =
       (do fract <- fraction
           expo  <- option "" exponent'
@@ -283,7 +283,7 @@ term =
   <|> blocktime
   <|> bindTerm
   <|> primFloat
-  <|> primInt
+  <|> primInteger
   <|> primByteString
   <|> builtin
 
@@ -424,10 +424,10 @@ bindTerm =
 
 
 
-primInt :: Parsec String u Term
-primInt =
-  do i <- intLiteral
-     return $ primIntH i
+primInteger :: Parsec String u Term
+primInteger =
+  do i <- integerLiteral
+     return $ primIntegerH i
 
 
 
@@ -618,7 +618,7 @@ dataDeclaration =
   construct "data" $ do
     c <- conName
     ks <- parens (many kindsig)
-    alts <- many alt
+    alts <- many (alt [ n | KindSig n _ <- ks ])
     return $ DataDeclaration c ks alts
 
 kindsig :: Parsec String u KindSig
@@ -628,12 +628,12 @@ kindsig =
     k <- kind
     return $ KindSig x k
 
-alt :: Parsec String u Alt
-alt =
+alt :: [String] -> Parsec String u Alt
+alt ns =
   parens $ do
     c <- conName
     ts <- many typep
-    return $ Alt c ts
+    return $ Alt c (map (scope ns) ts)
 
 typeDeclaration :: Parsec String u Declaration
 typeDeclaration =

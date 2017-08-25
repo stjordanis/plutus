@@ -31,65 +31,65 @@ import Data.List (intercalate)
 builtin :: String
         -> [Term]
         -> Either String Term
-builtin "addInt" xs =
+builtin "addInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
-      Right $ In (PrimInt (x + y))
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right $ In (PrimInteger (x + y))
     _ ->
-      Left $ "Incorrect arguments for builtin addInt: "
+      Left $ "Incorrect arguments for builtin addInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "subtractInt" xs =
+builtin "subtractInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
-      Right $ In (PrimInt (x - y))
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right $ In (PrimInteger (x - y))
     _ ->
-      Left $ "Incorrect arguments for builtin subtractInt: "
+      Left $ "Incorrect arguments for builtin subtractInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "multiplyInt" xs =
+builtin "multiplyInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
-      Right $ In (PrimInt (x * y))
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right $ In (PrimInteger (x * y))
     _ ->
-      Left $ "Incorrect arguments for builtin multiplyInt: "
+      Left $ "Incorrect arguments for builtin multiplyInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "divideInt" xs =
+builtin "divideInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
-      Right $ In (PrimInt (div x y))
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right $ In (PrimInteger (div x y))
     _ ->
-      Left $ "Incorrect arguments for builtin divideInt: "
+      Left $ "Incorrect arguments for builtin divideInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "remainderInt" xs =
+builtin "remainderInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
-      Right $ In (PrimInt (mod x y))
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right $ In (PrimInteger (mod x y))
     _ ->
-      Left $ "Incorrect arguments for builtin remainderInt: "
+      Left $ "Incorrect arguments for builtin remainderInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "lessThanInt" xs =
+builtin "lessThanInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
+    [In (PrimInteger x), In (PrimInteger y)] ->
       Right (boolToTerm (x < y))
     _ ->
-      Left $ "Incorrect arguments for builtin lessThanInt: "
+      Left $ "Incorrect arguments for builtin lessThanInteger: "
                 ++ intercalate "," (map pretty xs)
-builtin "equalsInt" xs =
+builtin "equalsInteger" xs =
   case xs of
-    [In (PrimInt x), In (PrimInt y)] ->
+    [In (PrimInteger x), In (PrimInteger y)] ->
       Right (boolToTerm (x == y))
     _ ->
-      Left $ "Incorrect arguments for builtin equalsInt: "
+      Left $ "Incorrect arguments for builtin equalsInteger: "
                 ++ intercalate "," (map pretty xs)
 builtin "intToFloat" xs =
   case xs of
-    [In (PrimInt x)] ->
-      Right $ In (PrimFloat (fromInteger (toInteger x)))
+    [In (PrimInteger x)] ->
+      Right $ In (PrimFloat (fromInteger x))
     _ ->
       Left $ "Incorrect arguments for builtin intToFloat: "
                 ++ intercalate "," (map pretty xs)
 builtin "intToByteString" xs =
   case xs of
-    [In (PrimInt x)] ->
+    [In (PrimInteger x)] ->
       Right $ In (PrimByteString (B.encode x))
     _ ->
       Left
@@ -140,21 +140,21 @@ builtin "equalsFloat" xs =
 builtin "ceiling" xs =
   case xs of
     [In (PrimFloat x)] ->
-      Right $ In (PrimInt (ceiling x))
+      Right $ In (PrimInteger (ceiling x))
     _ ->
       Left $ "Incorrect arguments for builtin ceiling: "
                 ++ intercalate "," (map pretty xs)
 builtin "floor" xs =
   case xs of
     [In (PrimFloat x)] ->
-      Right $ In (PrimInt (floor x))
+      Right $ In (PrimInteger (floor x))
     _ ->
       Left $ "Incorrect arguments for builtin floor: "
                 ++ intercalate "," (map pretty xs)
 builtin "round" xs =
   case xs of
     [In (PrimFloat x)] ->
-      Right $ In (PrimInt (round x))
+      Right $ In (PrimInteger (round x))
     _ ->
       Left $ "Incorrect arguments for builtin round: "
                 ++ intercalate "," (map pretty xs)
@@ -167,18 +167,18 @@ builtin "concatenate" xs =
     _ ->
       Left $ "Incorrect arguments for builtin concatenate: "
                 ++ intercalate "," (map pretty xs)
-builtin "drop" xs =
+builtin "dropByteString" xs =
   case xs of
-    [ In (PrimInt x)
+    [ In (PrimInteger x)
       , In (PrimByteString y)
       ] ->
       Right $ In (PrimByteString (BS.drop (fromIntegral x) y))
     _ ->
       Left $ "Incorrect arguments for builtin drop: "
                 ++ intercalate "," (map pretty xs)
-builtin "take" xs =
+builtin "takeByteString" xs =
   case xs of
-    [ In (PrimInt x)
+    [ In (PrimInteger x)
       , In (PrimByteString y)
       ] ->
       Right $ In (PrimByteString (BS.take (fromIntegral x) y))
