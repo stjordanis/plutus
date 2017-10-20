@@ -10,7 +10,7 @@ module PlutusCore.BuiltinEvaluation where
 
 import PlutusCore.Term
 import PlutusShared.BoolToTerm
-import PlutusShared.Qualified
+--import PlutusShared.Qualified
 import Utils.ABT
 import Utils.Pretty
 

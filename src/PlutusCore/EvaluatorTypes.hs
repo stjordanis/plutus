@@ -10,7 +10,7 @@
 module PlutusCore.EvaluatorTypes where
 
 import Utils.Env
-import Utils.Names
+-- import Utils.Names
 import PlutusCore.Term
 import PlutusShared.Qualified
 

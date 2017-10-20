@@ -8,7 +8,7 @@
 
 module PlutusCore.Contexts where
 
-import Utils.ABT
+import PlutusCore.Program
 import PlutusCore.Term
 
 
@@ -16,16 +16,7 @@ import PlutusCore.Term
 
 
 
-data NominalJudgment = ModJ String
-                     | ExpTypeJ String String
-                     | ExpTermJ String String
-                     | TermJ String String Term
-                     | DefJ String String Term
-                     | ConJ String String [Scope TermF] String
-                     | TyConJ String String [Kind]
-                     | TypeJ String String Term Kind
-
-type NominalContext = [NominalJudgment]
+type NominalContext = ([Module], [Declaration])
 
 
 
@@ -48,10 +39,15 @@ data Context = Context
                , hypotheticalContext :: HypotheticalContext
                }
 
-extendNom :: Context -> [NominalJudgment] -> Context
-extendNom ctx njs = ctx { nominalContext =
-                            njs ++ nominalContext ctx
-                        }
+extendNomMod :: Context -> Module -> Context
+extendNomMod ctx l =
+  ctx { nominalContext = (l:ls, ds) }
+  where (ls,ds) = nominalContext ctx
+
+extendNomDecl  :: Context -> Declaration -> Context
+extendNomDecl ctx d =
+  ctx { nominalContext = (ls, d:ds) }
+  where (ls,ds) = nominalContext ctx
 
 extendHyp :: Context -> [HypotheticalJudgment] -> Context
 extendHyp ctx hjs = ctx { hypotheticalContext =

@@ -278,9 +278,7 @@ term =
   <|> caseTerm
   <|> success
   <|> failure
-  <|> txhash
-  <|> blocknum
-  <|> blocktime
+  <|> compbuiltin
   <|> bindTerm
   <|> primFloat
   <|> primInteger
@@ -393,24 +391,11 @@ failure =
 
 
 
-txhash :: Parsec String u Term
-txhash =
-  construct "txhash" $ do
-    return txhashH
-
-
-
-blocknum :: Parsec String u Term
-blocknum =
-  construct "blocknum" $ do
-    return blocknumH
-
-
-
-blocktime :: Parsec String u Term
-blocktime =
-  construct "blocktime" $ do
-    return blocktimeH
+compbuiltin :: Parsec String u Term
+compbuiltin =
+  construct "compbuiltin" $ do
+    x <- variableName
+    return $ compBuiltinH x
 
 
 
@@ -642,13 +627,12 @@ typeDeclaration =
     tv <- typep
     return $ TypeDeclaration n tv
 
-
 termDeclaration :: Parsec String u Declaration
 termDeclaration =
   construct "declare" $ do
     n <- declaredName
-    t <- typep
-    return $ TermDeclaration n t
+    v <- typep
+    return $ TermDeclaration n v
 
 termDefinition :: Parsec String u Declaration
 termDefinition =

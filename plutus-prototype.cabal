@@ -23,7 +23,8 @@ source-repository head
   location:            git://github.com/input-output-hk/plutus-prototype.git
 
 library
-  exposed-modules:     PlutusShared.BoolToTerm,
+  exposed-modules:     Debug,
+                       PlutusShared.BoolToTerm,
                        PlutusShared.ConSig,
                        PlutusShared.Qualified,
                        PlutusShared.Type,
@@ -37,9 +38,9 @@ library
                        PlutusCore.Elaborator,
                        PlutusCore.Elaboration,
                        Testing.Testing,
-                       -- PlutusCore.EvaluatorTypes,
-                       -- PlutusCore.Program,
-                       -- PlutusCore.CKMachine,
+                       PlutusCore.EvaluatorTypes,
+                       PlutusCore.Program,
+                       PlutusCore.CKMachine,
                        -- ScopeChecking.Contexts,
                        -- ScopeChecking.Judgments,
                        -- Plutus.Term,

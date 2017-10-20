@@ -17,17 +17,17 @@
 module PlutusCore.Term where
 
 import PlutusShared.Qualified
-import PlutusShared.Type
+-- import PlutusShared.Type
 import Utils.ABT
-import Utils.Names
+-- import Utils.Names
 import Utils.Pretty
-import Utils.Vars
+-- import Utils.Vars
 
-import Control.Monad.State
+-- import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString.Lazy.Char8 as BSChar8
-import Data.Functor.Identity
-import Data.List (intercalate)
+-- import qualified Data.ByteString.Lazy.Char8 as BSChar8
+-- import Data.Functor.Identity
+-- import Data.List (intercalate)
 
 
 
@@ -69,9 +69,7 @@ data TermF r
   | Case r [ClauseF r]
   | Success r
   | Failure
-  | TxHash
-  | BlockNum
-  | BlockTime
+  | CompBuiltin String
   | Bind r r
   | PrimInteger Integer
   | PrimFloat Float
@@ -137,7 +135,7 @@ decnameH :: QualifiedName -> Term
 decnameH n = In (Decname n)
 
 isaH :: Term -> Term -> Term
-isaH m a = In (Isa (scope [] m) (scope [] a))
+isaH a m = In (Isa (scope [] a) (scope [] m))
 
 abstH :: String -> Term -> Term
 abstH x m = In (Abst (scope [x] m))
@@ -166,15 +164,8 @@ successH m = In (Success (scope [] m))
 failureH :: Term
 failureH = In Failure
 
-txhashH :: Term
-txhashH = In TxHash
-
-blocknumH :: Term
-blocknumH = In BlockNum
-
-blocktimeH :: Term
-blocktimeH = In BlockTime
-
+compBuiltinH :: String -> Term
+compBuiltinH n = In (CompBuiltin  n)
 bindH :: Term -> String -> Term -> Term
 bindH m x n = In (Bind (scope [] m) (scope [x] n))
 
@@ -238,11 +229,11 @@ instance Parens Term where
     name v
   parenRec (In (Decname n)) =
     prettyQualifiedName n
-  parenRec (In (Isa m a)) =
+  parenRec (In (Isa a m)) =
     "(isa "
-      ++ parenthesize Nothing (instantiate0 m)
-      ++ " "
       ++ parenthesize Nothing (instantiate0 a)
+      ++ " "
+      ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
   parenRec (In (Abst sc)) =
     "(abs "
@@ -294,12 +285,8 @@ instance Parens Term where
       ++ ")"
   parenRec (In Failure ) =
     "(failure)"
-  parenRec (In TxHash) =
-    "(txhash)"
-  parenRec (In BlockNum) =
-    "(blocknum)"
-  parenRec (In BlockTime) =
-    "(blocktime)"
+  parenRec (In (CompBuiltin n)) =
+    "(compbuiltin" ++ n ++ ")"
   parenRec (In (Bind m sc)) =
     "(bind "
     ++ parenthesize Nothing (instantiate0 m)

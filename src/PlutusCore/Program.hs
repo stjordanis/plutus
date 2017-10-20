@@ -11,12 +11,12 @@ module PlutusCore.Program where
 
 import Utils.ABT
 import Utils.Pretty
-import Utils.Names
+-- import Utils.Names
 import PlutusCore.Term
 
-import Data.List (intercalate)
+-- import Data.List (intercalate)
 
-import GHC.Generics
+-- import GHC.Generics
 
 
 
@@ -67,12 +67,13 @@ prettyDeclaration (TypeDeclaration n tv) =
     ++ " "
     ++ parenthesize Nothing tv
     ++ ")"
-prettyDeclaration (TermDeclaration n t) =
-  "(declare "
+prettyDeclaration (TermDeclaration n tv) =
+  "(define "
     ++ n
     ++ " "
-    ++ parenthesize Nothing t
+    ++ parenthesize Nothing tv
     ++ ")"
+
 prettyDeclaration (TermDefinition n v) =
   "(define "
     ++ n

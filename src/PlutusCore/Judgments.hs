@@ -10,8 +10,8 @@
 
 module PlutusCore.Judgments where
 
-import Utils.ABT
-import qualified Utils.ProofDeveloper as PD
+-- import Utils.ABT
+-- import qualified Utils.ProofDeveloper as PD
 import PlutusCore.Contexts
 import PlutusCore.Program
 import PlutusCore.Term
@@ -32,21 +32,21 @@ data Judgment r where
   ClauseJ :: Context
           -> QualifiedConstructor
           -> [Term]
+          -> Term
           -> Clause
-          -> Judgment Term
+          -> Judgment ()
   EqualJ :: Context -> Term -> Term -> Judgment ()
   EqualAllJ :: Context -> Term -> [Term] -> Judgment ()
-  ElabProgramJ :: Program -> Judgment NominalContext
-  ElabModuleJ :: NominalContext -> Module -> Judgment NominalContext
+  ElabProgramJ :: Program -> Judgment ()
+  ElabModuleJ :: [Module] -> Module -> Judgment ()
   ElabDeclJ :: String
             -> [String]
             -> NominalContext
             -> Declaration
-            -> Judgment NominalContext
+            -> Judgment ()
   ElabAltJ :: String
            -> [String]
            -> NominalContext
            -> Alt
-           -> QualifiedConstructor
            -> [KindSig]
-           -> Judgment NominalContext
+           -> Judgment ()

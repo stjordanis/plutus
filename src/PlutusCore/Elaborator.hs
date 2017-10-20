@@ -87,7 +87,7 @@ instance PD.ShowElabError () ElabError Judgment where
             "the term declaration for `" ++ n ++ "`"
           TermDefinition n _ ->
             "the term definition for `" ++ n ++ "`"
-      prettyJudgment (ElabAltJ _ _ _ (Alt c _) _ _) =
+      prettyJudgment (ElabAltJ _ _ _ (Alt c _) _) =
         "the constructor alternative for `" ++ c ++ "`"
       prettyJudgment (IsTypeJ _ a) =
         "checking that `"
@@ -106,7 +106,7 @@ instance PD.ShowElabError () ElabError Judgment where
       prettyJudgment (CheckJ _ a m) =
         "checking that the type `" ++ pretty a
         ++ "` contains the program `" ++ pretty m ++ "`"
-      prettyJudgment (ClauseJ _ _ _ (Clause qc _)) =
+      prettyJudgment (ClauseJ _ _ _ _ (Clause qc _)) =
         "checking the clause for `"
         ++ prettyQualifiedConstructor qc
         ++ "`"

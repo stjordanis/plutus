@@ -13,21 +13,21 @@
 
 module PlutusCore.Evaluation where
 
-import Utils.ABT
-import Utils.Env
-import Utils.Eval
-import Utils.Names
-import Utils.Pretty (pretty)
+--import Utils.ABT
+--import Utils.Env
+--import Utils.Eval
+--import Utils.Names
+--import Utils.Pretty (pretty)
 import qualified PlutusCore.CKMachine as CK
-import PlutusCore.BuiltinEvaluation
+--import PlutusCore.BuiltinEvaluation
 import PlutusCore.EvaluatorTypes
-import PlutusCore.PatternMatching
+--import PlutusCore.PatternMatching
 import PlutusCore.Term
-import PlutusShared.Qualified
+--import PlutusShared.Qualified
 
 import Data.Either (isRight)
 import qualified Cardano.Crypto.Wallet as CC
-import Control.Monad.Except
+--import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS

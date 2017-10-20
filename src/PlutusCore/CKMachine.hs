@@ -11,11 +11,11 @@ import PlutusCore.BuiltinEvaluation
 import PlutusCore.EvaluatorTypes
 import PlutusCore.PatternMatching
 import PlutusCore.Term
-import PlutusShared.BoolToTerm
+--import PlutusShared.BoolToTerm
 import PlutusShared.Qualified
 import Utils.ABT
-import Utils.Env
-import Utils.Names
+--import Utils.Env
+--import Utils.Names
 import Utils.Pretty
 
 import qualified Data.ByteString.Lazy as BS
@@ -68,8 +68,8 @@ rec petrol bci denv stk (In (Decname n)) =
       Left ("Unknown constant/defined term: " ++ prettyQualifiedName n)
     Just m ->
       ret (petrol - 1) bci denv stk m
-rec petrol bci denv stk (In (Isa m a)) =
-  rec (petrol - 1) bci denv (InIsaL (instantiate0 a) : stk) (instantiate0 m)
+rec petrol bci denv stk (In (Isa a m)) =
+  rec (petrol - 1) bci denv (InIsaL (instantiate0 m) : stk) (instantiate0 a)
 rec petrol bci denv stk (In (Abst m)) =
   rec (petrol - 1) bci denv (InAbst: stk) (instantiate0 m)
 rec petrol bci denv stk (In (Inst m a)) =
@@ -88,12 +88,8 @@ rec petrol bci denv stk (In (Success m)) =
   rec (petrol - 1) bci denv (InSuccess : stk) (instantiate0 m)
 rec petrol bci denv stk m@(In Failure) =
   ret (petrol - 1) bci denv stk m
-rec petrol bci denv stk (In TxHash) =
-  ret (petrol - 1) bci denv stk (primByteStringH (transactionHash bci))
-rec petrol bci denv stk (In BlockNum) =
-  ret (petrol - 1) bci denv stk (primIntegerH (blockNumber bci))
-rec petrol bci denv stk (In BlockTime) =
-  ret (petrol - 1) bci denv stk (primIntegerH (blockTime bci))
+rec petrol bci denv stk (In (CompBuiltin cbi)) =
+  ret (petrol - 1) bci denv stk (In (CompBuiltin cbi))
 rec petrol bci denv stk (In (Bind m sc)) =
   rec (petrol - 1) bci denv (InBind sc : stk) (instantiate0 m)
 rec petrol bci denv stk m@(In (PrimInteger _)) =
@@ -140,10 +136,10 @@ rec petrol bci denv stk (In (AppT f a)) =
 ret :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
 ret 0 _ _ _ _ = Left "Out of petrol."
 ret _ _ _ [] tm = Right tm
-ret petrol bci denv (InIsaL a : stk) m' =
-  rec (petrol - 1) bci denv (InIsaR m' : stk) a
-ret petrol bci denv (InIsaR m' : stk) a' =
-  ret (petrol - 1) bci denv stk (isaH m' a')
+ret petrol bci denv (InIsaL m : stk) a' =
+  rec (petrol - 1) bci denv (InIsaR a' : stk) m
+ret petrol bci denv (InIsaR a' : stk) m' =
+  ret (petrol - 1) bci denv stk (isaH a' m')
 ret petrol bci denv (InAbst : stk) m =
   ret (petrol - 1) bci denv stk m
 ret petrol bci denv (InInstL a : stk) m' =
@@ -172,13 +168,7 @@ ret petrol bci denv (InCase cs : stk) m =
 ret petrol bci denv (InSuccess : stk) m =
   ret (petrol - 1) bci denv stk (successH m)
 ret petrol bci denv (InBind sc : stk) m =
-  case m of
-    In Failure ->
-      ret (petrol - 1) bci denv stk failureH
-    In (Success m') ->
-      rec (petrol - 1) bci denv stk (instantiate sc [instantiate0 m'])
-    _ ->
-      Left ("Cannot bind a non-computation: " ++ pretty m)
+  ret (petrol - 1) bci denv stk (In (Bind (scope [] m) sc))
 ret petrol bci denv (InBuiltin n revls rs : stk) m =
   case rs of
     [] -> case builtin n (reverse (m:revls)) of

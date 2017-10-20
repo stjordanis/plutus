@@ -31,16 +31,15 @@
        and
        or
        bool
-       lessThanEqualsInt
-       maxInt
-       minInt
+       lessThanEqualsInteger
+       maxInteger
+       minInteger
        lessThanEqualsFloat
        maxFloat
        minFloat
        maybe
        isJust
        isNothing
-       fromJust
        fromMaybe
        mapMaybe
        equalsMaybe
@@ -65,9 +64,7 @@
        span
        groupBy
        foldr
-       foldr1
        foldl
-       foldl1
        unfoldr
        replicate
        map
@@ -89,9 +86,9 @@
        orList
        any
        all
-       sumInt
+       sumInteger
        sumFloat
-       productInt
+       productInteger
        productFloat
        maximumBy
        minimumBy
@@ -110,9 +107,6 @@
        lefts
        rights
        partitionEithers
-       verifySignature
-       verify
-       verifyMultiSig
        evalMASTProp
        evalMASTPath
        hashMASTProp
@@ -247,8 +241,7 @@
         (lam p
           (case p
             (Prelude.MkPair (x y)
-              (isa (con Prelude.MkPair y x)
-                   (con Prelude.Pair b a))))))))
+              (con Prelude.MkPair y x)))))))
     
     
     
@@ -265,11 +258,9 @@
       (lam x
         (case x
           (Prelude.True ()
-            (isa (con Prelude.False)
-                 (con Prelude.Bool)))
+            (con Prelude.False))
           (Prelude.False ()
-            (isa (con Prelude.True)
-                 (con Prelude.Bool))))))
+            (con Prelude.True)))))
     
     
     (declare and
@@ -281,8 +272,7 @@
         (case x
           (Prelude.True () y)
           (Prelude.False ()
-            (isa (con Prelude.False)
-                 (con Prelude.Bool)))))))
+            (con Prelude.False))))))
     
     
     (declare or
@@ -293,8 +283,7 @@
       (lam x (lam y
         (case x
           (Prelude.True ()
-            (isa (con Prelude.True)
-                 (con Prelude.Bool)))
+            (con Prelude.True))
           (Prelude.False () x)))))
     
     
@@ -564,11 +553,9 @@
         (lam m
           (case m
             (Prelude.Nothing ()
-              (isa (con Prelude.False)
-                   (con Prelude.Bool)))
+              (con Prelude.False))
             (Prelude.Just (x)
-              (isa (con Prelude.True)
-                   (con Prelude.Bool)))))))
+              (con Prelude.True))))))
     
     
     (declare isNothing
@@ -579,11 +566,9 @@
         (lam m
           (case m
             (Prelude.Nothing ()
-              (isa (con Prelude.True)
-                   (con Prelude.Bool)))
+              (con Prelude.True))
             (Prelude.Just (x)
-              (isa (con Prelude.False)
-                   (con Prelude.Bool)))))))
+              (con Prelude.False))))))
     
     
     (declare fromMaybe
@@ -607,11 +592,9 @@
         (lam f (lam m
           (case m
             (Prelude.Nothing ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe b)))
+              (con Prelude.Nothing))
             (Prelude.Just (x)
-              (isa (con Prelude.Just [f x])
-                   (con Prelude.Maybe b)))))))))
+              (con Prelude.Just [f x]))))))))
     
     
     (declare equalsMaybe
@@ -626,16 +609,13 @@
           (Prelude.Nothing ()
             (case m'
               (Prelude.Nothing ()
-                (isa (con Prelude.True)
-                     (con Prelude.Bool)))
+                (con Prelude.True))
               (Prelude.Just (y)
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))))
+                (con Prelude.False))))
           (Prelude.Just (x)
             (case m'
               (Prelude.Nothing ()
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))
+                (con Prelude.False))
               (Prelude.Just (y) [eq x y])))))))))
     
     
@@ -670,11 +650,9 @@
         (lam e
           (case e
             (Prelude.Left (x)
-              (isa (con Prelude.True)
-                   (con Prelude.Bool)))
+              (con Prelude.True))
             (Prelude.Right (y)
-              (isa (con Prelude.False)
-                   (con Prelude.Bool))))))))
+              (con Prelude.False)))))))
     
     
     (declare isRight
@@ -685,11 +663,9 @@
         (lam e
           (case e
             (Prelude.Left (x)
-              (isa (con Prelude.False)
-                   (con Prelude.Bool)))
+              (con Prelude.False))
             (Prelude.Right (y)
-              (isa (con Prelude.True)
-                   (con Prelude.Bool))))))))
+              (con Prelude.True)))))))
     
     
     (declare eitherToMaybe
@@ -701,11 +677,9 @@
         (lam e
           (case e
             (Prelude.Left (x)
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe b)))
+              (con Prelude.Nothing))
             (Prelude.Right (y)
-              (isa (con Prelude.Just y)
-                   (con Prelude.Maybe b))))))))
+              (con Prelude.Just y)))))))
     
     
     (declare maybeToEither
@@ -718,11 +692,9 @@
         (lam x (lam m
           (case m
             (Prelude.Nothing ()
-              (isa (con Prelude.Left x)
-                   (con Prelude.Either a b)))
+              (con Prelude.Left x))
             (Prelude.Just (y)
-              (isa (con Prelude.Right y)
-                   (con Prelude.Either a b)))))))))
+              (con Prelude.Right y))))))))
     
     
     (declare equalsEither
@@ -739,13 +711,11 @@
             (case e'
               (Prelude.Left (x') [eqA x x'])
               (Prelude.Right (y')
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))))
+                (con Prelude.False))))
           (Prelude.Right (y)
             (case e'
               (Prelude.Left (x')
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))
+                (con Prelude.False))
               (Prelude.Right (y') [eqB y y'])))))))))))
     
     
@@ -771,16 +741,13 @@
           (Prelude.Nil ()
             (case ys
               (Prelude.Nil ()
-                (isa (con Prelude.True)
-                     (con Prelude.Bool)))
+                (con Prelude.True))
               (Prelude.Cons (y ys')
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))))
+                (con Prelude.False))))
           (Prelude.Cons (x xs')
             (case ys
               (Prelude.Nil ()
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))
+                (con Prelude.False))
               (Prelude.Cons (y ys')
                 [Prelude.and
                   [eqA x y]
@@ -798,10 +765,9 @@
           (case xs
             (Prelude.Nil () ys)
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Cons
-                     x
-                     [(inst Prelude.append a) xs' ys])
-                   (con Prelude.List a))))))))
+              (con Prelude.Cons
+                   x
+                   [(inst Prelude.append a) xs' ys])))))))
     
     
     (declare head
@@ -812,11 +778,9 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe a)))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Just x)
-                   (con Prelude.Maybe a)))))))
+              (con Prelude.Just x))))))
     
     
     (declare last
@@ -827,13 +791,11 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe a)))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
               (case xs'
                 (Prelude.Nil ()
-                  (isa (con Prelude.Just x)
-                       (con Prelude.Maybe a)))
+                  (con Prelude.Just x))
                 (Prelude.Cons (x' xs'')
                   [(inst Prelude.last a)
                     (con Prelude.Cons x' xs'')])))))))
@@ -848,11 +810,9 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe (con Prelude.List a))))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs)
-              (isa (con Prelude.Just xs)
-                   (con Prelude.Maybe (con Prelude.List a))))))))
+              (con Prelude.Just xs))))))
     
     
     (declare init
@@ -864,16 +824,13 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe (con Prelude.List a))))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs)
               (case [(inst Prelude.init a) xs]
                 (Prelude.Nothing ()
-                  (isa (con Prelude.Just (con Prelude.Nil))
-                       (con Prelude.Maybe (con Prelude.List a))))
+                  (con Prelude.Just (con Prelude.Nil)))
                 (Prelude.Just (ys)
-                  (isa (con Prelude.Just (con Prelude.Cons x ys))
-                       (con Prelude.Maybe (con Prelude.List a))))))))))
+                  (con Prelude.Just (con Prelude.Cons x ys)))))))))
     
     
     (declare uncons
@@ -885,13 +842,9 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe
-                     (con Prelude.Pair a (con Prelude.List a)))))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs)
-              (isa (con Prelude.Just (con Prelude.MkPair x xs))
-                   (con Prelude.Maybe
-                     (con Prelude.Pair a (con Prelude.List a)))))))))
+              (con Prelude.Just (con Prelude.MkPair x xs)))))))
     
     
     (declare null
@@ -902,11 +855,9 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.True)
-                   (con Prelude.Bool)))
+              (con Prelude.True))
             (Prelude.Cons (x xs)
-              (isa (con Prelude.False)
-                   (con Prelude.Bool)))))))
+              (con Prelude.False))))))
     
     
     (declare length
@@ -932,20 +883,16 @@
         (lam n (lam xs
           (case [Prelude.equalsInteger n 0]
             (Prelude.True ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.False ()
               (case xs
                 (Prelude.Nil ()
-                  (isa (con Prelude.Nil)
-                       (con Prelude.List a)))
+                  (con Prelude.Nil))
                 (Prelude.Cons (x xs')
-                  (isa
-                    (con Prelude.Cons
+                  (con Prelude.Cons
                       x
                       [(inst Prelude.take a)
-                        [Prelude.subtractInteger n 1] xs'])
-                    (con Prelude.List a))))))))))
+                        [Prelude.subtractInteger n 1] xs'])))))))))
     
     
     (declare drop
@@ -961,8 +908,7 @@
             (Prelude.False ()
               (case xs
                 (Prelude.Nil ()
-                  (isa (con Prelude.Nil)
-                       (con Prelude.List a)))
+                  (con Prelude.Nil))
                 (Prelude.Cons (x xs')
                   [(inst Prelude.drop a)
                     [Prelude.subtractInteger n 1]
@@ -981,28 +927,19 @@
         (lam n (lam xs
           (case [Prelude.equalsInteger n 0]
             (Prelude.True ()
-              (isa (con Prelude.MkPair (con Prelude.Nil) xs)
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List a))))
+              (con Prelude.MkPair (con Prelude.Nil) xs))
             (Prelude.False ()
               (case xs
                 (Prelude.Nil ()
-                  (isa (con Prelude.MkPair
-                            (con Prelude.Nil)
-                            (con Prelude.Nil))
-                       (con Prelude.Pair
-                            (con Prelude.List a)
-                            (con Prelude.List a))))
+                  (con Prelude.MkPair
+                       (con Prelude.Nil)
+                       (con Prelude.Nil)))
                 (Prelude.Cons (x xs')
                   (case [(inst Prelude.splitAt a)
                           [Prelude.subtractInteger n 1] xs']
                     (Prelude.MkPair (ys zs)
-                      (isa (con Prelude.MkPair
-                                (con Prelude.Cons x ys) zs)
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a)))))))))))))
+                      (con Prelude.MkPair
+                           (con Prelude.Cons x ys) zs)))))))))))
     
     
     (declare takeWhile
@@ -1015,19 +952,15 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
-                  (isa
-                    (con Prelude.Cons
+                  (con Prelude.Cons
                       x
-                      [(inst Prelude.takeWhile a) p xs'])
-                    (con Prelude.List a)))
+                      [(inst Prelude.takeWhile a) p xs']))
                 (Prelude.False ()
-                  (isa (con Prelude.Nil)
-                       (con Prelude.List a))))))))))
+                  (con Prelude.Nil)))))))))
     
     
     (declare dropWhile
@@ -1040,15 +973,13 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil () 
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
                   [(inst Prelude.dropWhile a) p xs'])
                 (Prelude.False ()
-                  (isa (con Prelude.Cons x xs')
-                       (con Prelude.List a))))))))))
+                  (con Prelude.Cons x xs')))))))))
     
     
     (declare span
@@ -1063,30 +994,21 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.MkPair
-                        (con Prelude.Nil)
-                        (con Prelude.Nil))
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List a))))
+              (con Prelude.MkPair
+                   (con Prelude.Nil)
+                   (con Prelude.Nil)))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
                   (case [(inst Prelude.span a) p xs']
                     (Prelude.MkPair (ys zs)
-                      (isa (con Prelude.MkPair
-                                (con Prelude.Cons x ys)
-                                zs)
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a))))))
+                      (con Prelude.MkPair
+                           (con Prelude.Cons x ys)
+                           zs))))
                 (Prelude.False ()
-                  (isa (con Prelude.MkPair
-                            (con Prelude.Nil)
-                            (con Prelude.Cons x xs'))
-                       (con Prelude.Pair
-                            (con Prelude.List a)
-                            (con Prelude.List a)))))))))))
+                  (con Prelude.MkPair
+                       (con Prelude.Nil)
+                       (con Prelude.Cons x xs'))))))))))
     
     
     (declare groupBy
@@ -1099,16 +1021,14 @@
         (lam eq (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List (con Prelude.List a))))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [(inst Prelude.span a) [eq x] xs']
                 (Prelude.MkPair
                   (ys zs)
-                  (isa (con Prelude.Cons
-                            (con Prelude.Cons x ys)
-                            [(inst Prelude.groupBy a) eq zs])
-                       (con Prelude.List (con Prelude.List a)))))))))))
+                  (con Prelude.Cons
+                       (con Prelude.Cons x ys)
+                       [(inst Prelude.groupBy a) eq zs])))))))))
     
     
     (declare foldr
@@ -1150,15 +1070,13 @@
         (lam step (lam s
           (case [step s]
             (Prelude.Nothing ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Just (p)
               (case p
                 (Prelude.MkPair (x s')
-                  (isa (con Prelude.Cons
-                            x
-                            [(inst (inst Prelude.unfoldr a) b) step s'])
-                       (con Prelude.List a)))))))))))
+                  (con Prelude.Cons
+                       x
+                       [(inst (inst Prelude.unfoldr a) b) step s']))))))))))
     
     
     (declare replicate
@@ -1169,15 +1087,13 @@
         (lam n (lam x
           (case [Prelude.equalsInteger n 0]
             (Prelude.True ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.False ()
-              (isa (con Prelude.Cons
-                        x
-                        [(inst Prelude.replicate a)
-                          [Prelude.subtractInteger n 1]
-                          x])
-                   (con Prelude.List a))))))))
+              (con Prelude.Cons
+                   x
+                   [(inst Prelude.replicate a)
+                     [Prelude.subtractInteger n 1]
+                     x])))))))
     
     
     (declare map
@@ -1189,13 +1105,11 @@
         (lam f (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List b)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Cons
-                        [f x]
-                        [(inst (inst Prelude.map a) b) f xs'])
-                   (con Prelude.List b)))))))))
+              (con Prelude.Cons
+                   [f x]
+                   [(inst (inst Prelude.map a) b) f xs']))))))))
     
     
     (declare reverseOnto
@@ -1229,15 +1143,13 @@
         (lam sep (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Cons sep (con Prelude.Nil))
-                   (con Prelude.List a)))
+              (con Prelude.Cons sep (con Prelude.Nil)))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Cons
-                        sep
-                        (con Prelude.Cons
-                             x
-                             [(inst Prelude.prependToAll a) sep xs']))
-                   (con Prelude.List a))))))))
+              (con Prelude.Cons
+                   sep
+                   (con Prelude.Cons
+                        x
+                        [(inst Prelude.prependToAll a) sep xs']))))))))
     
     
     (declare intersperse
@@ -1250,13 +1162,11 @@
         (lam sep (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Cons
-                        x
-                        [(inst Prelude.prependToAll a) sep xs'])
-                   (con Prelude.List a))))))))
+              (con Prelude.Cons
+                   x
+                   [(inst Prelude.prependToAll a) sep xs'])))))))
     
     
     (declare concat
@@ -1268,8 +1178,7 @@
         (lam xss
           (case xss
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (xs xss')
               [(inst Prelude.append a) xs [(inst Prelude.concat a) xss']])))))
     
@@ -1284,8 +1193,7 @@
         (lam f (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List b)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               [(inst Prelude.append b) [f x] [(inst (inst Prelude.concatMap a) b) f xs']])))))))
     
@@ -1314,13 +1222,11 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
-                  (isa (con Prelude.Cons x [(inst Prelude.filter a) p xs'])
-                       (con Prelude.List a)))
+                  (con Prelude.Cons x [(inst Prelude.filter a) p xs']))
                 (Prelude.False () [(inst Prelude.filter a) p xs']))))))))
     
     
@@ -1334,13 +1240,11 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe a)))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
-                  (isa (con Prelude.Just x)
-                       (con Prelude.Maybe a)))
+                  (con Prelude.Just x))
                 (Prelude.False () [(inst Prelude.find a) p xs']))))))))
     
     
@@ -1356,24 +1260,15 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil))
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List a))))
+              (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
             (Prelude.Cons (x xs')
               (case [(inst Prelude.partition a) p xs']
                 (Prelude.MkPair (ts fs)
                   (case [p x]
                     (Prelude.True ()
-                      (isa (con Prelude.MkPair (con Prelude.Cons x ts) fs)
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a))))
+                      (con Prelude.MkPair (con Prelude.Cons x ts) fs))
                     (Prelude.False ()
-                      (isa (con Prelude.MkPair ts (con Prelude.Cons x fs))
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a)))))))))))))
+                      (con Prelude.MkPair ts (con Prelude.Cons x fs))))))))))))
     
     
     (declare nubBy
@@ -1386,15 +1281,13 @@
         (lam comp (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Cons
-                        x
-                        [(inst Prelude.filter a)
-                          (lam y [Prelude.not [comp x y]])
-                          [(inst Prelude.nubBy a) comp xs']])
-                   (con Prelude.List a))))))))
+              (con Prelude.Cons
+                   x
+                   [(inst Prelude.filter a)
+                     (lam y [Prelude.not [comp x y]])
+                     [(inst Prelude.nubBy a) comp xs']])))))))
     
     
     (declare zipWith
@@ -1408,19 +1301,16 @@
         (lam f (lam xs (lam ys
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List c)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case ys
                 (Prelude.Nil ()
-                  (isa (con Prelude.Nil)
-                       (con Prelude.List c)))
+                  (con Prelude.Nil))
                 (Prelude.Cons (y ys')
-                  (isa (con Prelude.Cons
-                            [f x y]
-                            [(inst (inst (inst Prelude.zipWith a) b) c)
-                              f xs' ys'])
-                       (con Prelude.List c)))))))))))))
+                  (con Prelude.Cons
+                       [f x y]
+                       [(inst (inst (inst Prelude.zipWith a) b) c)
+                         f xs' ys']))))))))))))
     
     
     (declare zip
@@ -1444,21 +1334,15 @@
         (lam xys
           (case xys
             (Prelude.Nil ()
-              (isa (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil))
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List b))))
+              (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
             (Prelude.Cons (xy xys')
               (case xy
                 (Prelude.MkPair (x y)
                   (case [(inst (inst Prelude.unzip a) b) xys']
                     (Prelude.MkPair (xs ys)
-                      (isa (con Prelude.MkPair
-                                (con Prelude.Cons x xs)
-                                (con Prelude.Cons y ys))
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List b)))))))))))))
+                      (con Prelude.MkPair
+                           (con Prelude.Cons x xs)
+                           (con Prelude.Cons y ys))))))))))))
     
     
     (declare andList
@@ -1574,13 +1458,11 @@
         (lam xs (lam n
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe a)))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
               (case [Prelude.equalsInteger n 0]
                 (Prelude.True ()
-                  (isa (con Prelude.Just x)
-                       (con Prelude.Maybe a)))
+                  (con Prelude.Just x))
                 (Prelude.False ()
                   [(inst Prelude.project a)
                     xs'
@@ -1597,21 +1479,17 @@
         (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe (integer))))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
-                  (isa (con Prelude.Just 0)
-                       (con Prelude.Maybe (integer))))
+                  (con Prelude.Just 0))
                 (Prelude.False ()
                   (case [(inst Prelude.findIndex a) p xs']
                     (Prelude.Nothing ()
-                      (isa (con Prelude.Nothing)
-                           (con Prelude.Maybe (integer))))
+                      (con Prelude.Nothing))
                     (Prelude.Just (i)
-                      (isa (con Prelude.Just [Prelude.addInteger i 1])
-                           (con Prelude.Maybe (integer)))))))))))))
+                      (con Prelude.Just [Prelude.addInteger i 1])))))))))))
     
     
     (declare findIndicesFrom
@@ -1625,18 +1503,16 @@
         (lam i (lam p (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List (integer))))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [p x]
                 (Prelude.True ()
-                  (isa (con Prelude.Cons
-                            i
-                            [(inst Prelude.findIndicesFrom a)
-                              [Prelude.addInteger i 1]
-                              p
-                              xs])
-                       (con Prelude.List (integer))))
+                  (con Prelude.Cons
+                       i
+                       [(inst Prelude.findIndicesFrom a)
+                         [Prelude.addInteger i 1]
+                         p
+                         xs]))
                 (Prelude.False ()
                   [(inst Prelude.findIndicesFrom a)
                     [Prelude.addInteger i 1]
@@ -1666,24 +1542,15 @@
         (lam b (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil))
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List a))))
+              (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
             (Prelude.Cons (x xs')
               (case [(inst Prelude.evenOddSplitFrom a) [Prelude.not b] xs']
                 (Prelude.MkPair (es os)
                   (case b
                     (Prelude.True ()
-                      (isa (con Prelude.MkPair (con Prelude.Cons x es) os)
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a))))
+                      (con Prelude.MkPair (con Prelude.Cons x es) os))
                     (Prelude.False ()
-                      (isa (con Prelude.MkPair es (con Prelude.Cons x os))
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List a)))))))))))))
+                      (con Prelude.MkPair es (con Prelude.Cons x os))))))))))))
     
     
     (declare evenOddSplit
@@ -1711,26 +1578,23 @@
             (Prelude.Cons (x xs')
               (case ys
                 (Prelude.Nil ()
-                  (isa (con Prelude.Cons x xs')
-                       (con Prelude.List a)))
+                  (con Prelude.Cons x xs'))
                 (Prelude.Cons (y ys')
                   (case [comp x y]
                     (Prelude.True ()
-                      (isa (con Prelude.Cons
-                                x
-                                [(inst Prelude.mergeBy a)
-                                  comp
-                                  xs'
-                                  (con Prelude.Cons y ys')])
-                           (con Prelude.List a)))
+                      (con Prelude.Cons
+                           x
+                           [(inst Prelude.mergeBy a)
+                             comp
+                             xs'
+                             (con Prelude.Cons y ys')]))
                     (Prelude.False ()
-                      (isa (con Prelude.Cons
-                                y
-                                [(inst Prelude.mergeBy a)
-                                  comp
-                                  (con Prelude.Cons x xs')
-                                  ys'])
-                           (con Prelude.List a)))))))))))))
+                      (con Prelude.Cons
+                           y
+                           [(inst Prelude.mergeBy a)
+                             comp
+                             (con Prelude.Cons x xs')
+                             ys']))))))))))))
     
     
     (declare mergeSortBy
@@ -1759,8 +1623,7 @@
         (lam comp (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (x xs')
               (case [(inst Prelude.partition a) [comp x] xs']
                 (Prelude.MkPair (lo hi)
@@ -1777,11 +1640,9 @@
         (lam xs
           (case xs
             (Prelude.Nil ()
-              (isa (con Prelude.Nothing)
-                   (con Prelude.Maybe a)))
+              (con Prelude.Nothing))
             (Prelude.Cons (x xs')
-              (isa (con Prelude.Just x)
-                   (con Prelude.Maybe a)))))))
+              (con Prelude.Just x))))))
     
     
     (declare maybeToList
@@ -1792,11 +1653,9 @@
         (lam m
           (case m
             (Prelude.Nothing ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Just (x)
-              (isa (con Prelude.Cons x (con Prelude.Nil))
-                   (con Prelude.List a)))))))
+              (con Prelude.Cons x (con Prelude.Nil)))))))
     
     
     (declare catMaybes
@@ -1808,14 +1667,12 @@
         (lam ms
           (case ms
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (m ms')
               (case m
                 (Prelude.Nothing () [(inst Prelude.catMaybes a) ms'])
                 (Prelude.Just (x)
-                  (isa (con Prelude.Cons x [(inst Prelude.catMaybes a) ms'])
-                       (con Prelude.List a)))))))))
+                  (con Prelude.Cons x [(inst Prelude.catMaybes a) ms']))))))))
     
     
     (declare lefts
@@ -1827,13 +1684,11 @@
         (lam es
           (case es
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List a)))
+              (con Prelude.Nil))
             (Prelude.Cons (e es')
               (case e
                 (Prelude.Left (x)
-                  (isa (con Prelude.Cons x [(inst (inst Prelude.lefts a) b) es'])
-                       (con Prelude.List a)))
+                  (con Prelude.Cons x [(inst (inst Prelude.lefts a) b) es']))
                 (Prelude.Right (y) [(inst (inst Prelude.lefts a) b) es']))))))))
     
     
@@ -1846,14 +1701,12 @@
         (lam es
           (case es
             (Prelude.Nil ()
-              (isa (con Prelude.Nil)
-                   (con Prelude.List b)))
+              (con Prelude.Nil))
             (Prelude.Cons (e es')
               (case e
                 (Prelude.Left (x) [(inst (inst Prelude.rights a) b) es'])
                 (Prelude.Right (y)
-                  (isa (con Prelude.Cons y [(inst (inst Prelude.rights a) b) es'])
-                       (con Prelude.List b))))))))))
+                  (con Prelude.Cons y [(inst (inst Prelude.rights a) b) es'])))))))))
     
     
     (declare partitionEithers
@@ -1867,24 +1720,15 @@
         (lam es
           (case es
             (Prelude.Nil ()
-              (isa (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil))
-                   (con Prelude.Pair
-                        (con Prelude.List a)
-                        (con Prelude.List b))))
+              (con Prelude.MkPair (con Prelude.Nil) (con Prelude.Nil)))
             (Prelude.Cons (e es')
               (case [(inst (inst Prelude.partitionEithers a) b) es']
                 (Prelude.MkPair (ls rs)
                   (case e
                     (Prelude.Left (x)
-                      (isa (con Prelude.MkPair (con Prelude.Cons x ls) rs)
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List b))))
+                      (con Prelude.MkPair (con Prelude.Cons x ls) rs))
                     (Prelude.Right (y)
-                      (isa (con Prelude.MkPair ls (con Prelude.Cons y rs))
-                           (con Prelude.Pair
-                                (con Prelude.List a)
-                                (con Prelude.List b)))))))))))))
+                      (con Prelude.MkPair ls (con Prelude.Cons y rs))))))))))))
     
     
     
@@ -1952,8 +1796,8 @@
     (define evalMASTProp
       (lam m
         (case m
-          (Prelude.MASTTrue () (isa (con Prelude.True) (con Prelude.Bool)))
-          (Prelude.MASTFalse () (isa (con Prelude.False) (con Prelude.Bool)))
+          (Prelude.MASTTrue () (con Prelude.True))
+          (Prelude.MASTFalse () (con Prelude.False))
           (Prelude.MASTNot (x) [Prelude.not [Prelude.evalMASTProp x]])
           (Prelude.MASTAnd (x y)
             [Prelude.and [Prelude.evalMASTProp x] [Prelude.evalMASTProp y]])
@@ -1985,19 +1829,17 @@
     (define evalMASTPath
       (lam m
         (case m
-          (Prelude.MASTPathSuccess () (isa (con Prelude.True) (con Prelude.Bool)))
-          (Prelude.MASTPathFailure () (isa (con Prelude.False) (con Prelude.Bool)))
+          (Prelude.MASTPathSuccess () (con Prelude.True))
+          (Prelude.MASTPathFailure () (con Prelude.False))
           (Prelude.MASTPathIfTrue (test t f)
             (case [Prelude.evalMASTProp test]
               (Prelude.True () [Prelude.evalMASTPath t])
               (Prelude.False ()
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))))
+                (con Prelude.False))))
           (Prelude.MASTPathIfFalse (test t f)
             (case [Prelude.evalMASTProp test]
               (Prelude.True ()
-                (isa (con Prelude.False)
-                     (con Prelude.Bool)))
+                (con Prelude.False))
               (Prelude.False () [Prelude.evalMASTPath f]))))))
     
     
@@ -2069,8 +1911,7 @@
       (lam hash (lam path
         (case [Prelude.evalMASTPath path]
           (Prelude.False ()
-            (isa (con Prelude.False)
-                 (con Prelude.Bool)))
+            (con Prelude.False))
           (Prelude.True ()
             [Prelude.equalsByteString
               hash
