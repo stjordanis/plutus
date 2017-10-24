@@ -306,9 +306,9 @@ decname =
 annotation :: Parsec String u Term
 annotation =
   construct "isa" $ do
-    m <- term
     t <- typep
-    return $ isaH m t
+    m <- term
+    return $ isaH t m
 
 
 

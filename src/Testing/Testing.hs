@@ -8,6 +8,7 @@
 
 module Testing.Testing where
 
+import PlutusCore.Contexts
 import PlutusCore.Elaboration ()
 import PlutusCore.Elaborator
 import PlutusCore.Evaluation
@@ -56,77 +57,36 @@ until_ p prompt action = do
 repl :: String -> IO ()
 repl src0 = case loadProgram src0 of
              Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-             Right dctx --(sig,defs,ctx)
+             Right (prog,dctx) --(sig,defs,ctx)
                -> do hSetBuffering stdin LineBuffering
                      until_ (== ":quit")
                             (readPrompt "$> ")
-                            (evalAndPrint dctx)
+                            (evalAndPrint prog dctx)
   where
     loadProgram
-      :: String -> Either String QualifiedEnv
+      :: String -> Either String (Program, QualifiedEnv)
     loadProgram src =
       do prog <- parseProgram src
          mapLeft PD.showElabError
            (runElaborator
              (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
-         return (extractDefinitions prog)
+         return (prog, extractDefinitions prog)
     
-    {-
-         (dctx,_)
-           <- mapLeft PD.showElabError
-                      (runElaborator
-                        (PD.elaborator
-                          (ElabProgram emptyDeclContext prog)))
-         return dctx
-    
-    parseAndElab :: DeclContext -> String -> Either String (Core.Term,DeclContext)
-    parseAndElab dctx src =
-      do tm0 <- parseTerm src
-         let tm = freeToDefined (In . Decname . User) tm0
-         case runElaborator (PD.elaborator (Synth dctx emptyHypContext tm)) of
-           Left e -> Left (PD.showElabError e)
-           Right ((tm',_,dctx'),_) -> Right (tm',dctx')
-    
-    loadTerm :: DeclContext -> String -> Either String Core.Term
-    loadTerm dctx src =
-      do (tm',dctx') <- parseAndElab dctx src
-         evaluate (TransactionInfo undefined {- !!! -})
-                      (definitionsToEnvironment (definitions dctx'))
-                      3750
-                      tm'
-    -}
-    
-    evalAndPrint :: QualifiedEnv -> String -> IO ()
-    evalAndPrint env s =
+    evalAndPrint :: Program -> QualifiedEnv -> String -> IO ()
+    evalAndPrint (Program ls) env s =
       case parseTerm s of
         Left e -> flushStr ("ERROR: " ++ e ++ "\n")
         Right m ->
-          case evaluate undefined env 10000 m of
-            Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-            Right v -> flushStr (pretty v ++ "\n")
-    
-    {-
-    evalAndPrint _ "" = return ()
-    evalAndPrint dctx ":defs" =
-      flushStr
-        (unlines
-          [ showSourced n
-            | (n,_) <- definitions dctx
-            ]
-          ++ "\n")
-    evalAndPrint dctx (':':'e':'l':'a':'b':src) =
-      case parseAndElab dctx src of
-        Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-        Right (m,_) -> flushStr (pretty m ++ "\n")
-    evalAndPrint dctx (':':'j':'s':src) =
-      case parseAndElab dctx src of
-        Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-        Right (m,_) -> flushStr (jsABTToSource (toJS m) ++ "\n")
-    evalAndPrint dctx src =
-      case loadTerm dctx src of
-        Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-        Right v -> flushStr (pretty v ++ "\n")
-    -}
+          case runElaborator
+                 (PD.elaborator (SynthJ (Context "Main"
+                                                 ["Prelude"]
+                                                 (ls,[])
+                                                 [])
+                                        m)) of
+            Left e -> flushStr ("ERROR: " ++ PD.showElabError e ++ "\n")
+            Right _ -> case evaluate undefined env 10000 m of
+              Left e' -> flushStr ("ERROR: " ++ e' ++ "\n")
+              Right v -> flushStr (pretty v ++ "\n")
 
 
 replFile :: String -> IO ()

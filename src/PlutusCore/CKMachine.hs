@@ -28,7 +28,6 @@ import qualified Data.ByteString.Lazy as BS
 
 data CKFrame = InIsaL Term
              | InIsaR Term
-             | InAbst
              | InInstL Term
              | InInstR Term
              | InAppLeft Term
@@ -71,7 +70,7 @@ rec petrol bci denv stk (In (Decname n)) =
 rec petrol bci denv stk (In (Isa a m)) =
   rec (petrol - 1) bci denv (InIsaL (instantiate0 m) : stk) (instantiate0 a)
 rec petrol bci denv stk (In (Abst m)) =
-  rec (petrol - 1) bci denv (InAbst: stk) (instantiate0 m)
+  ret (petrol - 1) bci denv stk (In (Abst m))
 rec petrol bci denv stk (In (Inst m a)) =
   rec (petrol - 1) bci denv (InInstL (instantiate0 a) : stk) (instantiate0 m)
 rec petrol bci denv stk m@(In (Lam _)) =
@@ -140,12 +139,14 @@ ret petrol bci denv (InIsaL m : stk) a' =
   rec (petrol - 1) bci denv (InIsaR a' : stk) m
 ret petrol bci denv (InIsaR a' : stk) m' =
   ret (petrol - 1) bci denv stk (isaH a' m')
-ret petrol bci denv (InAbst : stk) m =
-  ret (petrol - 1) bci denv stk m
 ret petrol bci denv (InInstL a : stk) m' =
   rec (petrol - 1) bci denv (InInstR m' : stk) a
 ret petrol bci denv (InInstR m' : stk) a' =
-  ret (petrol - 1) bci denv stk (instH m' a')
+  case m' of
+    In (Abst sc) ->
+      rec (petrol - 1) bci denv stk (instantiate sc [a'])
+    _ ->
+      ret (petrol - 1) bci denv stk (instH m' a')
 ret petrol bci denv (InAppLeft x : stk) f =
   rec (petrol - 1) bci denv (InAppRight f : stk) x
 ret petrol bci denv (InAppRight f : stk) x =
