@@ -1,7 +1,7 @@
 (program
   (module Prelude
-    (imported)
-    (exported
+    (import)
+    (export
       
       ((Unit (MkUnit))
        (Pair (MkPair))
@@ -22,19 +22,28 @@
        applyTo
        compose
        compose2
+       equalsPair
        fst
        snd
        curry
        uncurry
        swap
+       equalsBool
        not
        and
        or
        bool
+       equalsInteger
+       lessThanInteger
        lessThanEqualsInteger
+       greaterThanEqualsInteger
        maxInteger
        minInteger
+       equalsFloat
+       lessThanFloat
        lessThanEqualsFloat
+       greaterThanFloat
+       greaterThanEqualsFloat
        maxFloat
        minFloat
        maybe
@@ -184,11 +193,94 @@
     
     
     ;;
+    ;; Boolean Tools
+    ;;
+    
+    (data Bool () (True) (False))
+    
+    (declare equalsBool
+      (fun (con Prelude.Bool)
+        (fun (con Prelude.Bool)
+             (con Prelude.Bool))))
+    (define equalsBool (lam x (lam y
+      (case x
+        (Prelude.True ()
+          (case y
+            (Prelude.True () (con Prelude.True))
+            (Prelude.False () (con Prelude.False))))
+        (Prelude.False ()
+          (case y
+            (Prelude.True () (con Prelude.False))
+            (Prelude.False () (con Prelude.True))))))))
+    
+    (declare not
+      (fun (con Prelude.Bool) (con Prelude.Bool)))
+    (define not
+      (lam x
+        (case x
+          (Prelude.True ()
+            (con Prelude.False))
+          (Prelude.False ()
+            (con Prelude.True)))))
+    
+    
+    (declare and
+      (fun (con Prelude.Bool)
+           (fun (con Prelude.Bool)
+                (con Prelude.Bool))))
+    (define and
+      (lam x (lam y
+        (case x
+          (Prelude.True () y)
+          (Prelude.False ()
+            (con Prelude.False))))))
+    
+    
+    (declare or
+      (fun (con Prelude.Bool)
+           (fun (con Prelude.Bool)
+                (con Prelude.Bool))))
+    (define or
+      (lam x (lam y
+        (case x
+          (Prelude.True ()
+            (con Prelude.True))
+          (Prelude.False () y)))))
+    
+    
+    (declare bool
+      (forall a (type)
+        (fun a (fun a (fun (con Prelude.Bool) a)))))
+    (define bool
+      (abs a
+        (lam f (lam t (lam b
+          (case b
+            (Prelude.True  () t)
+            (Prelude.False () f)))))))
+    
+    
+    
+    
+    ;;
     ;; Pair Tools
     ;;
     
     (data Pair ((a (type)) (b (type)))
           (MkPair a b))
+    
+    (declare equalsPair
+      (forall a (type) (forall b (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+          (fun (fun b (fun b (con Prelude.Bool)))
+            (fun (con Prelude.Pair a b)
+              (fun (con Prelude.Pair a b)
+                   (con Prelude.Bool))))))))
+    (define equalsPair (abs a (abs b (lam eqA (lam eqB (lam p1 (lam p2
+      (case p1
+        (Prelude.MkPair (x1 y1)
+          (case p2
+            (Prelude.MkPair (x2 y2)
+              [Prelude.and [eqA x1 x2] [eqB y1 y2]])))))))))))
     
     
     (declare fst
@@ -245,58 +337,6 @@
     
     
     
-    ;;
-    ;; Boolean Tools
-    ;;
-    
-    (data Bool () (True) (False))
-    
-    
-    (declare not
-      (fun (con Prelude.Bool) (con Prelude.Bool)))
-    (define not
-      (lam x
-        (case x
-          (Prelude.True ()
-            (con Prelude.False))
-          (Prelude.False ()
-            (con Prelude.True)))))
-    
-    
-    (declare and
-      (fun (con Prelude.Bool)
-           (fun (con Prelude.Bool)
-                (con Prelude.Bool))))
-    (define and
-      (lam x (lam y
-        (case x
-          (Prelude.True () y)
-          (Prelude.False ()
-            (con Prelude.False))))))
-    
-    
-    (declare or
-      (fun (con Prelude.Bool)
-           (fun (con Prelude.Bool)
-                (con Prelude.Bool))))
-    (define or
-      (lam x (lam y
-        (case x
-          (Prelude.True ()
-            (con Prelude.True))
-          (Prelude.False () x)))))
-    
-    
-    (declare bool
-      (forall a (type)
-        (fun a (fun a (fun (con Prelude.Bool) a)))))
-    (define bool
-      (abs a
-        (lam f (lam t (lam b
-          (case b
-            (Prelude.True  () t)
-            (Prelude.False () f)))))))
-    
     
     
     ;;
@@ -352,9 +392,23 @@
         (builtin lessThanInteger x y))))
     
     
+    (declare greaterThanInteger
+      (fun (integer) (fun (integer) (con Prelude.Bool))))
+    (define greaterThanInteger
+      (lam x (lam y
+        (builtin lessThanInteger y x))))
+    
+    
     (declare lessThanEqualsInteger
       (fun (integer) (fun (integer) (con Prelude.Bool))))
     (define lessThanEqualsInteger
+      (lam x (lam y
+        (builtin lessThanEqualsInteger x y))))
+    
+    
+    (declare greaterThanEqualsInteger
+      (fun (integer) (fun (integer) (con Prelude.Bool))))
+    (define greaterThanEqualsInteger
       (lam x (lam y
         (builtin lessThanEqualsInteger y x))))
     
@@ -438,9 +492,23 @@
         (builtin lessThanFloat x y))))
     
     
+    (declare greaterThanFloat
+      (fun (float) (fun (float) (con Prelude.Bool))))
+    (define greaterThanFloat
+      (lam x (lam y
+        (builtin lessThanFloat y x))))
+    
+    
     (declare lessThanEqualsFloat
       (fun (float) (fun (float) (con Prelude.Bool))))
     (define lessThanEqualsFloat
+      (lam x (lam y
+        (builtin lessThanEqualsFloat x y))))
+    
+    
+    (declare greaterThanEqualsFloat
+      (fun (float) (fun (float) (con Prelude.Bool))))
+    (define greaterThanEqualsFloat
       (lam x (lam y
         (builtin lessThanEqualsFloat y x))))
     
@@ -871,6 +939,22 @@
             (Prelude.Cons (x xs)
               [Prelude.addInteger 1
                 [(inst Prelude.length a) xs]])))))
+    
+    
+    (declare elem
+      (forall a (type)
+        (fun (fun a (fun a (con Prelude.Bool)))
+          (fun a
+            (fun (con Prelude.List a)
+                 (con Prelude.Bool))))))
+    (define elem (abs a (lam eqA (lam x (lam xs
+      (case xs
+        (Prelude.Nil () (con Prelude.False))
+        (Prelude.Cons (y ys)
+          (case [eqA x y]
+            (Prelude.True () (con Prelude.True))
+            (Prelude.False ()
+              [(inst Prelude.elem a) eqA x ys])))))))))
     
     
     (declare take

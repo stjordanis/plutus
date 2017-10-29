@@ -54,6 +54,22 @@ until_ p prompt action = do
       then return ()
       else action result >> until_ p prompt action
 
+evalAndPrint :: Program -> QualifiedEnv -> String -> IO ()
+evalAndPrint (Program ls) env s =
+  case parseTerm s of
+    Left e -> flushStr ("ERROR: " ++ e ++ "\n")
+    Right m ->
+      case runElaborator
+             (PD.elaborator (SynthJ (Context "Main"
+                                             ["Prelude"]
+                                             (ls,[])
+                                             [])
+                                    m)) of
+        Left e -> flushStr ("ERROR: " ++ PD.showElabError e ++ "\n")
+        Right _ -> case evaluate undefined env 10000 m of
+          Left e' -> flushStr ("ERROR: " ++ e' ++ "\n")
+          Right v -> flushStr (pretty v ++ "\n")
+
 repl :: String -> IO ()
 repl src0 = case loadProgram src0 of
              Left e -> flushStr ("ERROR: " ++ e ++ "\n")
@@ -71,23 +87,29 @@ repl src0 = case loadProgram src0 of
            (runElaborator
              (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
          return (prog, extractDefinitions prog)
-    
-    evalAndPrint :: Program -> QualifiedEnv -> String -> IO ()
-    evalAndPrint (Program ls) env s =
-      case parseTerm s of
-        Left e -> flushStr ("ERROR: " ++ e ++ "\n")
-        Right m ->
-          case runElaborator
-                 (PD.elaborator (SynthJ (Context "Main"
-                                                 ["Prelude"]
-                                                 (ls,[])
-                                                 [])
-                                        m)) of
-            Left e -> flushStr ("ERROR: " ++ PD.showElabError e ++ "\n")
-            Right _ -> case evaluate undefined env 10000 m of
-              Left e' -> flushStr ("ERROR: " ++ e' ++ "\n")
-              Right v -> flushStr (pretty v ++ "\n")
 
 
 replFile :: String -> IO ()
 replFile loc = readFile loc >>= repl
+
+replFileWithPrelude :: String -> String -> IO ()
+replFileWithPrelude preludeLoc loc =
+  do prelude <- readFile preludeLoc
+     code <- readFile loc
+     case (parseProgram prelude, parseProgram code) of
+       (Right (Program ls), Right (Program ls')) ->
+         case elabProgram (Program (ls ++ ls')) of
+           Left e -> flushStr ("ERROR: " ++ e ++ "\n")
+           Right (prog,dctx) ->
+             do hSetBuffering stdin LineBuffering
+                until_ (== ":quit")
+                       (readPrompt "$> ")
+                       (evalAndPrint prog dctx)
+       (Right _, Left e) -> flushStr ("ERROR: " ++ e ++ "\n")
+       (Left e, _) -> flushStr ("ERROR: " ++ e ++ "\n")
+  where
+    elabProgram prog =
+      do mapLeft PD.showElabError
+           (runElaborator
+             (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
+         return (prog, extractDefinitions prog)

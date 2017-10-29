@@ -629,7 +629,9 @@ declJ l ls' nomctx@(_,ds) (TermDefinition nm v) =
             (Context l ls' nomctx [])
             (QualifiedName l nm)
      goal (IsTermValueJ v)
-     goal (CheckJ (Context l ls' nomctx []) u v)
+     let tenv = nominalContextToTypeEnv (Context l ls' nomctx [])
+         normal_u = evaluateType tenv u
+     goal (CheckJ (Context l ls' nomctx []) normal_u v)
 
 
 
@@ -782,6 +784,10 @@ isTypeJ _ m =
 
 
 isTypeValueJ :: Term -> Decomposer ()
+isTypeValueJ (Var _) =
+  return ()
+isTypeValueJ (In (DecnameT _)) =
+  return ()
 isTypeValueJ (In (FunT a b)) =
   do goal (IsTypeValueJ (instantiate0 a))
      goal (IsTypeValueJ (instantiate0 b))
@@ -880,9 +886,10 @@ checkJ ctx t (In (Case m cls)) =
        In (ConT tc bs) ->
          do noRepeatedConstructors cls
             coversAllConstructors ctx tc cls
-            let bs' = map instantiate0 bs
+            let tenv = nominalContextToTypeEnv ctx
+                normal_bs = map (evaluateType tenv . instantiate0) bs 
             forM_ cls $ \cl ->
-              goal (ClauseJ ctx tc bs' t cl)
+              goal (ClauseJ ctx tc normal_bs t cl)
        _ ->
          failure
            (ElabError
@@ -896,7 +903,10 @@ checkJ ctx a m =
   case (isType a, isTerm m) of
     (True,True) ->
       do a' <- synthJ ctx m
-         goal (EqualJ ctx a a')
+         let tenv = nominalContextToTypeEnv ctx
+             normal_a = evaluateType tenv a
+             normal_a' = evaluateType tenv a'
+         goal (EqualJ ctx normal_a normal_a')
          return ()
     (True,False) ->
       failure
@@ -948,7 +958,9 @@ synthJ ctx (In (App m n)) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
        In (FunT b c) ->
-         do goal (CheckJ ctx (instantiate0 b) (instantiate0 n))
+         do let tenv = nominalContextToTypeEnv ctx
+                normal_b = evaluateType tenv (instantiate0 b)
+            goal (CheckJ ctx normal_b (instantiate0 n))
             return (instantiate0 c)
        _ -> failure
               (ElabError
@@ -992,7 +1004,9 @@ synthJ ctx (In (Builtin n ms)) =
          (ElabError
            ("Builtin `" ++ n ++ "` expects " ++ show (length as)
              ++ " arguments but was given " ++ show (length ms))))
-     forM_ (zip as ms) $ \(a,m) ->
+     let tenv = nominalContextToTypeEnv ctx
+         normal_as = map (evaluateType tenv) as
+     forM_ (zip normal_as ms) $ \(a,m) ->
        goal (CheckJ ctx a (instantiate0 m))
      return b
 synthJ _ a =

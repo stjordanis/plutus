@@ -439,6 +439,7 @@ builtin =
 typep :: Parsec String u Term
 typep =
       variableT
+  <|> decnameT
   <|> funT
   <|> conT
   <|> compT
@@ -453,6 +454,11 @@ variableT :: Parsec String u Term
 variableT =
   do x <- variableName
      return $ Var (Free (FreeVar x))
+
+decnameT :: Parsec String u Term
+decnameT =
+  do qn <- qualName
+     return $ decnameTH qn
 
 funT :: Parsec String u Term
 funT =
@@ -552,14 +558,14 @@ modle =
 
 imprts :: Parsec String u Imports
 imprts =
-  construct "imported" $ do
+  construct "import" $ do
     ls <- many moduleName
     return ls
 
 
 exprts :: Parsec String u Exports
 exprts =
-  construct "exported" $ do
+  construct "export" $ do
     typeExports <- parens (many typeExport)
     ns <- parens (many variableName)
     return $ Exports typeExports ns

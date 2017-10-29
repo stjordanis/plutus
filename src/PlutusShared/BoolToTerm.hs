@@ -18,5 +18,5 @@ import PlutusShared.Qualified
 
 
 boolToTerm :: Bool -> Term
-boolToTerm True = conH (QualifiedConstructor "Prim" "True") []
-boolToTerm False = conH (QualifiedConstructor "Prim" "False") []
+boolToTerm True = conH (QualifiedConstructor "Prelude" "True") []
+boolToTerm False = conH (QualifiedConstructor "Prelude" "False") []

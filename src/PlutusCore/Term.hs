@@ -238,6 +238,7 @@ instance Parens Term where
   parenRec (In (Abst sc)) =
     "(abs "
       ++ head (names sc)
+      ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
   parenRec (In (Inst m a)) =

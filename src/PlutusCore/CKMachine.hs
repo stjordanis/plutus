@@ -66,9 +66,9 @@ rec petrol bci denv stk (In (Decname n)) =
     Nothing ->
       Left ("Unknown constant/defined term: " ++ prettyQualifiedName n)
     Just m ->
-      ret (petrol - 1) bci denv stk m
+      rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (In (Isa a m)) =
-  rec (petrol - 1) bci denv (InIsaL (instantiate0 m) : stk) (instantiate0 a)
+  rec (petrol - 1) bci denv (InIsaR (instantiate0 a) : stk) (instantiate0 m)
 rec petrol bci denv stk (In (Abst m)) =
   ret (petrol - 1) bci denv stk (In (Abst m))
 rec petrol bci denv stk (In (Inst m a)) =
@@ -105,8 +105,12 @@ rec petrol bci denv stk (In (Builtin n [])) =
       ret (petrol - 1) bci denv stk m'
 rec petrol bci denv stk (In (Builtin n (m:ms))) =
   rec (petrol - 1) bci denv (InBuiltin n [] (map instantiate0 ms) : stk) (instantiate0 m)
-rec petrol bci denv stk (In (DecnameT qn)) =
-  ret (petrol - 1) bci denv stk (In (DecnameT qn))
+rec petrol bci denv stk (In (DecnameT n)) =
+  case lookup n denv of
+    Nothing ->
+      Left ("Unknown constant/defined type: " ++ prettyQualifiedName n)
+    Just m ->
+      rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (In (FunT a b)) =
   rec (petrol - 1) bci denv (InFunTL (instantiate0 b) : stk) (instantiate0 a)
 rec petrol bci denv stk (In (ConT qc [])) =
@@ -135,12 +139,17 @@ rec petrol bci denv stk (In (AppT f a)) =
 ret :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
 ret 0 _ _ _ _ = Left "Out of petrol."
 ret _ _ _ [] tm = Right tm
-ret petrol bci denv (InIsaL m : stk) a' =
-  rec (petrol - 1) bci denv (InIsaR a' : stk) m
-ret petrol bci denv (InIsaR a' : stk) m' =
-  ret (petrol - 1) bci denv stk (isaH a' m')
-ret petrol bci denv (InInstL a : stk) m' =
-  rec (petrol - 1) bci denv (InInstR m' : stk) a
+ret petrol bci denv (InIsaL m' : stk) _ =
+  ret (petrol - 1) bci denv stk m'
+ret petrol bci denv (InIsaR _ : stk) m' =
+  ret (petrol - 1) bci denv stk m'
+ret petrol bci denv (InInstL a' : stk) m' =
+  case m' of
+    In (Abst sc) ->
+      rec (petrol - 1) bci denv stk (instantiate sc [a'])
+    _ ->
+      ret (petrol - 1) bci denv stk (instH m' a')
+  --rec (petrol - 1) bci denv (InInstR m' : stk) a
 ret petrol bci denv (InInstR m' : stk) a' =
   case m' of
     In (Abst sc) ->

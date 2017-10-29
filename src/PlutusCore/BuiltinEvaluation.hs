@@ -73,6 +73,13 @@ builtin "lessThanInteger" xs =
     _ ->
       Left $ "Incorrect arguments for builtin lessThanInteger: "
                 ++ intercalate "," (map pretty xs)
+builtin "lessThanEqualsInteger" xs =
+  case xs of
+    [In (PrimInteger x), In (PrimInteger y)] ->
+      Right (boolToTerm (x <= y))
+    _ ->
+      Left $ "Incorrect arguments for builtin lessThanInteger: "
+                ++ intercalate "," (map pretty xs)
 builtin "equalsInteger" xs =
   case xs of
     [In (PrimInteger x), In (PrimInteger y)] ->
@@ -127,6 +134,13 @@ builtin "lessThanFloat" xs =
   case xs of
     [In (PrimFloat x), In (PrimFloat y)] ->
       Right (boolToTerm (x < y))
+    _ ->
+      Left $ "Incorrect arguments for builtin lessThanFloat: "
+                ++ intercalate "," (map pretty xs)
+builtin "lessThanEqualsFloat" xs =
+  case xs of
+    [In (PrimFloat x), In (PrimFloat y)] ->
+      Right (boolToTerm (x <= y))
     _ ->
       Left $ "Incorrect arguments for builtin lessThanFloat: "
                 ++ intercalate "," (map pretty xs)
