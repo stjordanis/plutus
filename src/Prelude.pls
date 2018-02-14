@@ -340,12 +340,12 @@ intersperse : forall a. a -> List a -> List a {
 
 concat : forall a. List (List a) -> List a {
   concat Nil = Nil ;
-  concat (Cons xs xss) = append xs (concat xss)
+  concat (Cons xs xss) = append xs Preludecat xss)
 }
 
 concatMap : forall a b. (a -> List b) -> List a -> List b {
   concatMap _ Nil = Nil ;
-  concatMap f (Cons x xs) = append (f x) (concatMap f xs)
+  concatMap f (Cons x xs) = append (f x) PreludecatMap f xs)
 }
 
 intercalate : forall a. List a -> List (List a) -> List a {

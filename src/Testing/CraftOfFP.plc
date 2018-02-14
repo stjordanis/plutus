@@ -83,7 +83,7 @@
                          (fun (integer)
                               (con Prelude.Bool))))
     (define prop_max3 (lam x (lam y
-      [CraftOfFP.exOr
+      [Prelude.or
         [Prelude.equalsInteger x [CraftOfFP.max x y]]
         [Prelude.equalsInteger y [CraftOfFP.max x y]]])))
     
@@ -264,8 +264,8 @@
     (data Move () (Rock) (Paper) (Scissors))
     
     
-    (declare equalsMove (fun (con CraftOfFP.Move)
-                          (fun (con CraftOfFP.Move)
+    (declare equalsMove (fun Prelude CraftOfFP.Move)
+                          (fun Prelude CraftOfFP.Move)
                                (con Prelude.Bool))))
     (define equalsMove (lam m1 (lam m2
       (case m1
@@ -286,23 +286,23 @@
             (CraftOfFP.Scissors () (con Prelude.True))))))))
     
     
-    (declare beat (fun (con CraftOfFP.Move) (con CraftOfFP.Move)))
+    (declare beat (fun Prelude CraftOfFP.Move) Prelude CraftOfFP.Move)))
     (define beat (lam m
       (case m
-        (CraftOfFP.Rock () (con CraftOfFP.Scissors))
-        (CraftOfFP.Paper () (con CraftOfFP.Rock))
-        (CraftOfFP.Scissors () (con CraftOfFP.Paper)))))
+        (CraftOfFP.Rock () Prelude CraftOfFP.Scissors))
+        (CraftOfFP.Paper () Prelude CraftOfFP.Rock))
+        (CraftOfFP.Scissors () Prelude CraftOfFP.Paper)))))
     
     
-    (declare lose (fun (con CraftOfFP.Move) (con CraftOfFP.Move)))
+    (declare lose (fun Prelude CraftOfFP.Move) Prelude CraftOfFP.Move)))
     (define lose (lam m
       (case m
-        (CraftOfFP.Rock () (con CraftOfFP.Paper))
-        (CraftOfFP.Paper () (con CraftOfFP.Scissors))
-        (CraftOfFP.Scissors () (con CraftOfFP.Rock)))))
+        (CraftOfFP.Rock () Prelude CraftOfFP.Paper))
+        (CraftOfFP.Paper () Prelude CraftOfFP.Scissors))
+        (CraftOfFP.Scissors () Prelude CraftOfFP.Rock)))))
     
     
-    (declare prop_WinLose (fun (con CraftOfFP.Move) (con Prelude.Bool)))
+    (declare prop_WinLose (fun Prelude CraftOfFP.Move) (con Prelude.Bool)))
     (define prop_WinLose (lam m
       [Prelude.and
         [Prelude.not [CraftOfFP.equalsMove [CraftOfFP.beat m]
@@ -314,15 +314,15 @@
     
     (declare test_WinLose_1 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_WinLose_1 (lam x
-      [CraftOfFP.prop_WinLose (con CraftOfFP.Rock)]))
+      [CraftOfFP.prop_WinLose CraftOfFP.Rock)]))
     
     (declare test_WinLose_2 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_WinLose_2 (lam x
-      [CraftOfFP.prop_WinLose (con CraftOfFP.Paper)]))
+      [CraftOfFP.prop_WinLose CraftOfFP.Paper)]))
     
     (declare test_WinLose_3 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_WinLose_3 (lam x
-      [CraftOfFP.prop_WinLose (con CraftOfFP.Scissors)]))
+      [CraftOfFP.prop_WinLose CraftOfFP.Scissors)]))
       
     
     
@@ -335,12 +335,12 @@
                             (fun (integer)
                                  (integer)))))
     (define mysteryMax (lam x (lam y (lam z
-      (case [Prelude.and [Prelude.greaterThanInteger x y]
-                         [Prelude.greaterThanInteger x z]]
+      (case [Prelude.and [Prelude.greaterThanEqualsInteger x y]
+                         [Prelude.greaterThanEqualsInteger x z]]
          (Prelude.True () x)
          (Prelude.False ()
-           (case [Prelude.and [Prelude.greaterThanInteger y x]
-                              [Prelude.greaterThanInteger y z]]
+           (case [Prelude.and [Prelude.greaterThanEqualsInteger y x]
+                              [Prelude.greaterThanEqualsInteger y z]]
               (Prelude.True () y)
               (Prelude.False () z))))))))
     
@@ -736,7 +736,7 @@
       (case xs
         (Prelude.Nil () ys)
         (Prelude.Cons (x xs')
-          [CraftOfFP.shunt xs (con Prelude.Cons x ys)])))))
+          [CraftOfFP.shunt xs' (con Prelude.Cons x ys)])))))
     
     
     (declare prop_shunt (fun (con Prelude.List (integer))
@@ -747,7 +747,9 @@
         [CraftOfFP.shunt
           [CraftOfFP.shunt xs ys]
           (con Prelude.Nil)]
-        [CraftOfFP.shunt xs ys]])))
+        [CraftOfFP.shunt
+          ys
+          xs]])))
     
     
     (declare test_shunt_1 (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -1006,12 +1008,12 @@
     
     (data Tree ((a (type)))
       (Nil)
-      (Node a (con CraftOfFP.Tree a) (con CraftOfFP.Tree a)))
+      (Node a Prelude CraftOfFP.Tree a) Prelude CraftOfFP.Tree a)))
     
     
     (declare collapse
       (forall a (type)
-        (fun (con CraftOfFP.Tree a)
+        (fun Prelude CraftOfFP.Tree a)
              (con Prelude.List a))))
     (define collapse (abs a (lam t
       (case t
@@ -1027,13 +1029,13 @@
       (forall a (type)
         (forall b (type)
           (fun (fun a b)
-            (fun (con CraftOfFP.Tree a)
-                 (con CraftOfFP.Tree b))))))
+            (fun Prelude CraftOfFP.Tree a)
+                 Prelude CraftOfFP.Tree b))))))
     (define mapTree (abs a (abs b (lam f (lam t
       (case t
-        (CraftOfFP.Nil () (con CraftOfFP.Nil))
+        (CraftOfFP.Nil () Prelude CraftOfFP.Nil))
         (CraftOfFP.Node (x l r)
-          (con CraftOfFP.Node
+          Prelude CraftOfFP.Node
             [f x]
             [(inst (inst CraftOfFP.mapTree a) b) f l]
             [(inst (inst CraftOfFP.mapTree a) b) f r]))))))))
@@ -1041,7 +1043,7 @@
     
     (declare prop_collapse
       (fun (fun (integer) (integer))
-        (fun (con CraftOfFP.Tree (integer))
+        (fun Prelude CraftOfFP.Tree (integer))
              (con Prelude.Bool))))
     (define prop_collapse (lam f (lam t
       [(inst Prelude.equalsList (integer)) Prelude.equalsInteger
@@ -1053,7 +1055,7 @@
     
     
     (declare sizeT
-      (forall a (type) (fun (con CraftOfFP.Tree a) (integer))))
+      (forall a (type) (fun Prelude CraftOfFP.Tree a) (integer))))
     (define sizeT (abs a (lam t
       (case t
         (CraftOfFP.Nil () 1)
@@ -1066,7 +1068,7 @@
     
     
     (declare leavesT
-      (forall a (type) (fun (con CraftOfFP.Tree a) (integer))))
+      (forall a (type) (fun Prelude CraftOfFP.Tree a) (integer))))
     (define leavesT (abs a (lam t
       (case t
         (CraftOfFP.Nil () 1)
@@ -1075,7 +1077,7 @@
                               [(inst CraftOfFP.leavesT a) r]])))))
     
     
-    (declare prop_sizeT (fun (con CraftOfFP.Tree (integer))
+    (declare prop_sizeT (fun Prelude CraftOfFP.Tree (integer))
                              (con Prelude.Bool)))
     (define prop_sizeT (lam t
       [Prelude.equalsInteger
@@ -1090,52 +1092,52 @@
     (define test_collapse_1 (lam x
       [CraftOfFP.prop_collapse
         [Prelude.addInteger 2]
-        (con CraftOfFP.Nil)]))
+        Prelude CraftOfFP.Nil)]))
     
     (declare test_collapse_2 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_collapse_2 (lam x
       [CraftOfFP.prop_collapse
         [Prelude.addInteger 2]
-        (con CraftOfFP.Node 0
-          (con CraftOfFP.Node 13
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil))
-          (con CraftOfFP.Node 42
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil)))]))
+        Prelude CraftOfFP.Node 0
+          Prelude CraftOfFP.Node 13
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil))
+          Prelude CraftOfFP.Node 42
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil)))]))
     
         (declare test_collapse_3 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_collapse_3 (lam x
       [CraftOfFP.prop_collapse
         [Prelude.multiplyInteger 2]
-        (con CraftOfFP.Nil)]))
+        Prelude CraftOfFP.Nil)]))
     
     (declare test_collapse_4 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_collapse_4 (lam x
       [CraftOfFP.prop_collapse
         [Prelude.multiplyInteger 2]
-        (con CraftOfFP.Node 0
-          (con CraftOfFP.Node 13
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil))
-          (con CraftOfFP.Node 42
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil)))]))
+        Prelude CraftOfFP.Node 0
+          Prelude CraftOfFP.Node 13
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil))
+          Prelude CraftOfFP.Node 42
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil)))]))
     
     (declare test_sizeT_1 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_sizeT_1 (lam x
-      [CraftOfFP.prop_sizeT (con CraftOfFP.Nil)]))
+      [CraftOfFP.prop_sizeT Prelude CraftOfFP.Nil)]))
     
     (declare test_sizeT_2 (fun (con Prelude.Unit) (con Prelude.Bool)))
     (define test_sizeT_2 (lam x
       [CraftOfFP.prop_sizeT
-        (con CraftOfFP.Node 0
-          (con CraftOfFP.Node 13
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil))
-          (con CraftOfFP.Node 42
-            (con CraftOfFP.Nil)
-            (con CraftOfFP.Nil)))]))
+        Prelude CraftOfFP.Node 0
+          Prelude CraftOfFP.Node 13
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil))
+          Prelude CraftOfFP.Node 42
+            Prelude CraftOfFP.Nil)
+            Prelude CraftOfFP.Nil)))]))
     
     
     

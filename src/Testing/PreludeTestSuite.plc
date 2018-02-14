@@ -116,7 +116,7 @@
   
   
   
-    ;; forall x y. [fst (con MkPair x y)] = x
+    ;; forall x y. [fst Prelude MkPair x y)] = x
   
     (declare test_pair_tools_fst
       (fun (integer)
@@ -133,7 +133,7 @@
       )))
   
   
-    ;; forall x y. [snd (con MkPair x y)] = y
+    ;; forall x y. [snd Prelude MkPair x y)] = y
   
     (declare test_pair_tools_snd
       (fun (integer)
@@ -150,7 +150,7 @@
       )))
   
   
-    ;; forall f x y. [curry f x y] = [f (con MkPair x y)]
+    ;; forall f x y. [curry f x y] = [f Prelude MkPair x y)]
   
     (declare test_pair_tools_curry
       (fun (fun (con Prelude.Pair (integer) (integer)) (integer))
@@ -168,7 +168,7 @@
       ))))
   
   
-    ;; forall f x y. [uncury f (con MkPair x y)] = [f x y]
+    ;; forall f x y. [uncury f Prelude MkPair x y)] = [f x y]
   
     (declare test_pair_tools_uncurry
       (fun (fun (integer) (fun (integer) (integer)))
@@ -186,7 +186,7 @@
       ))))
   
   
-    ;; forall x y. [swap (con MkPair x y)] = (con MkPair y x)
+    ;; forall x y. [swap Prelude MkPair x y)] = Prelude MkPair y x)
   
     (declare test_pair_tools_swap
       (fun (integer)
@@ -204,7 +204,7 @@
   
   
   
-    ;; forall n j. [Prelude.maybe n j (con Nothing)] = n
+    ;; forall n j. [Prelude.maybe n j Prelude Nothing)] = n
   
     (declare test_maybe_tools_maybe_0
       (fun (integer)
@@ -221,13 +221,13 @@
       )))
   
   
-    ;; forall n j x. [maybe n j (con Just x)] = [j x]
+    ;; forall n j x. [maybe n j Prelude Just x)] = [j x]
   
     (declare test_maybe_tools_maybe_1
       (fun (integer)
            (fun (fun (integer) (integer))
                 (fun (integer)
-                     (con PRelude.Bool)))))
+                     Prelude PRelude.Bool)))))
     (define test_maybe_tools_maybe_1
       (lam n (lam j (lam x
       
@@ -239,7 +239,7 @@
       ))))
   
   
-    ;; forall x. [fromJust (con Just x)] = x
+    ;; forall x. [fromJust Prelude Just x)] = x
   
     (declare test_maybe_tools_fromJust
       (fun (integer) (con Prelude.Bool)))
@@ -254,7 +254,7 @@
       ))
   
   
-    ;; forall n. [fromMaybe n (con Nothing)] = n
+    ;; forall n. [fromMaybe n Prelude Nothing)] = n
   
     (declare test_maybe_tools_fromMaybe_0
       (fun (integer)
@@ -270,7 +270,7 @@
       )))
   
   
-    ;; forall n x. [fromMaybe n (con Just x)] = x
+    ;; forall n x. [fromMaybe n Prelude Just x)] = x
   
     (declare test_maybe_tools_fromMaybe_1
       (fun (integer)
@@ -287,7 +287,7 @@
       )))
     
     
-    ;; forall f. [mapMaybe f (con Nothing)] = (con Nothing)
+    ;; forall f. [mapMaybe f Prelude Nothing)] = Prelude Nothing)
     
     (declare test_maybe_tools_mapMaybe_0
       (fun (fun (integer) (integer))
@@ -303,7 +303,7 @@
       ))
     
     
-    ;; forall f x. [mapMaybe f (con Just x)] = (con Just [f x])
+    ;; forall f x. [mapMaybe f Prelude Just x)] = Prelude Just [f x])
     
     (declare test_maybe_tools_mapMaybe_1
       (fun (fun (integer) (integer))
@@ -321,7 +321,7 @@
   
   
   
-    ;; forall l r x. [either l r (con Left x)] = [l x]
+    ;; forall l r x. [either l r Prelude Left x)] = [l x]
   
     (declare test_either_tools_either_0
       (fun (fun (integer) (integer))
@@ -339,7 +339,7 @@
       ))))
   
   
-    ;; forall l r y. [either l r (con Right y)] = [r y]
+    ;; forall l r y. [either l r Prelude Right y)] = [r y]
   
     (declare test_either_tools_either_1
       (fun (fun (integer) (integer))
@@ -357,7 +357,7 @@
       ))))
     
     
-    ;; forall x. [eitherToMaybe (con Left x)] = (con Nothing)
+    ;; forall x. [eitherToMaybe Prelude Left x)] = Prelude Nothing)
     
     (declare test_either_tools_eitherToMaybe_0
       (fun (integer)
@@ -373,7 +373,7 @@
       ))
     
     
-    ;; forall y. [eitherToMaybe (con Right y)] = (con Just y)
+    ;; forall y. [eitherToMaybe Prelude Right y)] = Prelude Just y)
     
     (declare test_either_tools_eitherToMaybe_1
       (fun (integer)
@@ -389,7 +389,7 @@
       ))
     
     
-    ;; forall x. [maybeToEither x (con Nothing)] = (con Left x)
+    ;; forall x. [maybeToEither x Prelude Nothing)] = Prelude Left x)
     
     (declare test_either_tools_maybeToEither_0
       (fun (integer)
@@ -405,7 +405,7 @@
       ))
     
     
-    ;; forall x y. [maybeToEither x (con Just y)] = (con Right y)
+    ;; forall x y. [maybeToEither x Prelude Just y)] = Prelude Right y)
     
     (declare test_either_tools_maybeToEither_1
       (fun (integer)
@@ -423,7 +423,7 @@
     
     
     
-    ;; forall xs. [append (con Nil) xs] = xs
+    ;; forall xs. [append Prelude Nil) xs] = xs
     
     (declare test_list_tools_append_0
       (fun (con Prelude.List (integer))
@@ -439,7 +439,7 @@
       ))
     
     
-    ;; forall xs. [append xs (con Nil)] = xs
+    ;; forall xs. [append xs Prelude Nil)] = xs
     
     (declare test_list_tools_append_1
       (fun (con Prelude.List (integer))
@@ -473,7 +473,7 @@
       ))))
     
     
-    ;; [head (con Nil)] = (con Nothing)
+    ;; [head Prelude Nil)] = Prelude Nothing)
     
     (declare test_list_tools_head_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -488,7 +488,7 @@
       ))
     
     
-    ;; forall x xs. [head (con Cons x xs)] = (con Just x)
+    ;; forall x xs. [head Prelude Cons x xs)] = Prelude Just x)
     
     (declare test_list_tools_head_1
       (fun (integer)
@@ -505,7 +505,7 @@
       )))
     
     
-    ;; [last (con Nil)] = (con Nothing)
+    ;; [last Prelude Nil)] = Prelude Nothing)
     
     (declare test_list_tools_last_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -520,7 +520,7 @@
       ))
     
     
-    ;; forall x xs. [last [append xs (con Cons x (con Nil))]] = (con Just x)
+    ;; forall x xs. [last [append xs Prelude Cons x Prelude Nil))]] = Prelude Just x)
     
     (declare test_list_tools_last_1
       (fun (integer)
@@ -537,7 +537,7 @@
       )))
     
     
-    ;; [tail (con Nil)] = (con Nothing)
+    ;; [tail Prelude Nil)] = Prelude Nothing)
     
     (declare test_list_tools_tail_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -552,7 +552,7 @@
       ))
     
     
-    ;; forall x xs. [tail (con Cons x xs)] = (con Just xs)
+    ;; forall x xs. [tail Prelude Cons x xs)] = Prelude Just xs)
     
     (declare test_list_tools_tail_1
       (fun (integer)
@@ -569,7 +569,7 @@
       )))
     
     
-    ;; [init (con Nil)] = (con Nothing)
+    ;; [init Prelude Nil)] = Prelude Nothing)
     
     (declare test_list_tools_init_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -584,7 +584,7 @@
       ))
     
     
-    ;; forall x xs. [init [append xs (con Cons x (con Nil))]] = (con Just xs)
+    ;; forall x xs. [init [append xs Prelude Cons x Prelude Nil))]] = Prelude Just xs)
     
     (declare test_list_tools_init_1
       (fun (integer)
@@ -601,7 +601,7 @@
       )))
     
     
-    ;; [uncons (con Nil)] = (con Nothing)
+    ;; [uncons Prelude Nil)] = Prelude Nothing)
     
     (declare test_list_tools_uncons_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -616,7 +616,7 @@
       ))
     
     
-    ;; forall x xs. [uncons (con Cons x xs)] = (cons MkPair x xs)
+    ;; forall x xs. [uncons Prelude Cons x xs)] = Preludes MkPair x xs)
     
     (declare test_list_tools_uncons_1
       (fun (integer)
@@ -633,7 +633,7 @@
       )))
     
     
-    ;; [null (con Nil)] = (con True)
+    ;; [null Prelude Nil)] = Prelude True)
     
     (declare test_list_tools_null_0
       (fun (con Prelude.Unit) (con Prelude.Bool)))
@@ -645,7 +645,7 @@
       ))
     
     
-    ;; forall x xs. [null (con Cons x xs)] = (con False)
+    ;; forall x xs. [null Prelude Cons x xs)] = Prelude False)
     
     (declare test_list_tools_null_1
       (fun (integer)
