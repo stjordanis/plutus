@@ -22,12 +22,37 @@ source-repository head
   type:                git
   location:            git://github.com/input-output-hk/plutus-prototype.git
 
+--executable profiling
+--  ghc-options:         -main-is Testing.ScottCraftOfFPProfiling
+--  main-is:             Testing/ScottCraftOfFPProfiling.hs
+--  build-depends:       base >=4.8 && <4.10,
+--                       bifunctors,
+--                       binary,
+--                       bytestring,
+--                       cardano-crypto,
+--                       cryptonite,
+--                       ed25519,
+--                       either,
+--                       filepath,
+--                       lens,
+--                       memory,
+--                       mtl,
+--                       operational,
+--                       parsec,
+--                       transformers
+--  hs-source-dirs:      src
+--
 library
-  exposed-modules:     Debug,
-                       PlutusShared.BoolToTerm,
-                       PlutusShared.ConSig,
-                       PlutusShared.Qualified,
-                       PlutusShared.Type,
+  exposed-modules:     Utils.Names,
+                       Utils.Vars,
+                       Utils.ABT,
+                       Utils.JSABT,
+                       Utils.ProofDeveloper,
+                       --Debug,
+                       --PlutusShared.BoolToTerm,
+                       --PlutusShared.ConSig,
+                       --PlutusShared.Qualified,
+                       --PlutusShared.Type,
                        PlutusCore.Term,
                        PlutusCore.BuiltinEvaluation,
                        PlutusCore.PatternMatching,
@@ -37,35 +62,22 @@ library
                        PlutusCore.Judgments,
                        PlutusCore.Elaborator,
                        PlutusCore.Elaboration,
-                       Testing.Testing,
-                       PlutusCore.EvaluatorTypes,
+                       --PlutusCore.EvaluatorTypes,
                        PlutusCore.Program,
                        PlutusCore.CKMachine,
-                       -- ScopeChecking.Contexts,
-                       -- ScopeChecking.Judgments,
-                       -- Plutus.Term,
-                       -- Plutus.Program,
-                       -- Plutus.Parser,
-                       --Elaboration.Contexts,
-                       --Elaboration.Elaborator,
-                       --Elaboration.Elaboration,
-                       --Elaboration.ElabState,
-                       --Elaboration.Judgments,
                        --Interface.JSVM,
                        --Interface.REPL,
                        --Interface.Integration,
                        --Interface.Prelude,
-                       Utils.Names,
-                       Utils.Vars,
-                       Utils.ABT,
-                       Utils.JSABT,
-                       Utils.ProofDeveloper
+                       Testing.Testing,
+                       Testing.ScottCraftOfFPProfiling
+                       -- Testing.ProgramGenerator,
+                       
   other-modules:       Utils.Elaborator,
                        Utils.Env,
                        Utils.Eval,
                        Utils.Pretty,
                        Utils.SuffixParser,
-                       Utils.Unifier,
                        Paths_plutus_prototype
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.10,
