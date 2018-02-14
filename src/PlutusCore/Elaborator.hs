@@ -25,7 +25,6 @@ import qualified Utils.ProofDeveloper as PD
 import PlutusCore.Program
 import PlutusCore.Term
 import PlutusCore.Judgments
-import PlutusShared.Qualified
 
 --import qualified Control.Lens as L
 --import Control.Monad.State
@@ -75,9 +74,7 @@ instance PD.ShowElabError () ElabError Judgment where
       prettyJudgment :: Judgment r -> String
       prettyJudgment (ElabProgramJ _) =
         "<program>"
-      prettyJudgment (ElabModuleJ _ (Module l _ _ _)) =
-        "the module definition for `" ++ l ++ "`"
-      prettyJudgment (ElabDeclJ _ _ _ decl) =
+      prettyJudgment (ElabDeclJ _ decl) =
         case decl of
           DataDeclaration n _ _ ->
             "the data declaration for `" ++ n ++ "`"
@@ -87,7 +84,7 @@ instance PD.ShowElabError () ElabError Judgment where
             "the term declaration for `" ++ n ++ "`"
           TermDefinition n _ ->
             "the term definition for `" ++ n ++ "`"
-      prettyJudgment (ElabAltJ _ _ _ (Alt c _) _) =
+      prettyJudgment (ElabAltJ _ (Alt c _) _) =
         "the constructor alternative for `" ++ c ++ "`"
       prettyJudgment (IsTypeJ _ a) =
         "checking that `"
@@ -106,9 +103,9 @@ instance PD.ShowElabError () ElabError Judgment where
       prettyJudgment (CheckJ _ a m) =
         "checking that the type `" ++ pretty a
         ++ "` contains the program `" ++ pretty m ++ "`"
-      prettyJudgment (ClauseJ _ _ _ _ (Clause qc :$: _)) =
+      prettyJudgment (ClauseJ _ _ _ _ (Clause c :$: _)) =
         "checking the clause for `"
-        ++ prettyQualifiedConstructor qc
+        ++ c
         ++ "`"
       prettyJudgment (ClauseJ _ _ _ _ _) =
         error "Tried to check that a non-clause was a well-formed clause.\

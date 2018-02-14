@@ -41,7 +41,7 @@ import qualified Data.ByteString.Lazy as BS
 
 -- | Standard eager evaluation.
 
-instance Eval QualifiedEnv Term where
+instance Eval Environment Term where
   eval (Var v) =
     return $ Var v
   eval (In (Decname x)) =
@@ -101,9 +101,9 @@ tick :: (Num s, MonadState s m) => m ()
 tick = modify (subtract 1)
 
 type PetrolEvaluator =
-  ReaderT (TransactionInfo,QualifiedEnv) (StateT Petrol (Either String))
+  ReaderT (TransactionInfo,Environment) (StateT Petrol (Either String))
 
-declEnvironment :: PetrolEvaluator QualifiedEnv
+declEnvironment :: PetrolEvaluator Environment
 declEnvironment = snd <$> ask
 
 signedTransaction :: PetrolEvaluator TransactionInfo
@@ -111,7 +111,7 @@ signedTransaction = fst <$> ask
 
 {-
 instance MEval
-           (TransactionInfo,QualifiedEnv)
+           (TransactionInfo,Environment)
            String
            PetrolEvaluator
            Term where
@@ -193,7 +193,7 @@ instance MEval
 
 
 evaluate
-  :: CK.BlockChainInfo -> QualifiedEnv -> Petrol -> Term -> Either String Term
+  :: CK.BlockChainInfo -> Environment -> Petrol -> Term -> Either String Term
 evaluate bci env ptrl m =
   CK.evaluate bci env ptrl m
   {-
@@ -202,7 +202,7 @@ evaluate bci env ptrl m =
   in fst <$> result
   -}
 
-evaluateType :: QualifiedEnv -> Term -> Term
+evaluateType :: Environment -> Term -> Term
 evaluateType env m =
   case evaluate undefined env (Petrol maxBound) m of
     Right u -> u

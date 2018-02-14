@@ -69,28 +69,28 @@ builtin "remainderInteger" xs =
 builtin "lessThanInteger" xs =
   case xs of
     [PrimInteger x :$: [], PrimInteger y :$: []] ->
-      Right (boolToScottTerm (x < y))
+      Right (boolToTerm (x < y))
     _ ->
       Left $ "Incorrect arguments for builtin lessThanInteger: "
                 ++ intercalate "," (map pretty xs)
 builtin "lessThanEqualsInteger" xs =
   case xs of
     [PrimInteger x :$: [], PrimInteger y :$: []] ->
-      Right (boolToScottTerm (x <= y))
+      Right (boolToTerm (x <= y))
     _ ->
       Left $ "Incorrect arguments for builtin lessThanEqualsInteger: "
                 ++ intercalate "," (map pretty xs)
 builtin "greaterThanInteger" xs =
   case xs of
     [PrimInteger x :$: [], PrimInteger y :$: []] ->
-      Right (boolToScottTerm (x > y))
+      Right (boolToTerm (x > y))
     _ ->
       Left $ "Incorrect arguments for builtin greaterThanInteger: "
                 ++ intercalate "," (map pretty xs)
 builtin "greaterThanEqualsInteger" xs =
   case xs of
     [PrimInteger x :$: [], PrimInteger y :$: []] ->
-      Right (boolToScottTerm (x >= y))
+      Right (boolToTerm (x >= y))
     _ ->
       Left $ "Incorrect arguments for builtin greaterThanEqualsInteger: "
                 ++ intercalate "," (map pretty xs)
@@ -98,7 +98,7 @@ builtin "greaterThanEqualsInteger" xs =
 builtin "equalsInteger" xs =
   case xs of
     [PrimInteger x :$: [], PrimInteger y :$: []] ->
-      Right (boolToScottTerm (x == y))
+      Right (boolToTerm (x == y))
     _ ->
       Left $ "Incorrect arguments for builtin equalsInteger: "
                 ++ intercalate "," (map pretty xs)
@@ -148,35 +148,35 @@ builtin "divideFloat" xs =
 builtin "lessThanFloat" xs =
   case xs of
     [PrimFloat x :$: [], PrimFloat y :$: []] ->
-      Right (boolToScottTerm (x < y))
+      Right (boolToTerm (x < y))
     _ ->
       Left $ "Incorrect arguments for builtin lessThanFloat: "
                 ++ intercalate "," (map pretty xs)
 builtin "lessThanEqualsFloat" xs =
   case xs of
     [PrimFloat x :$: [], PrimFloat y :$: []] ->
-      Right (boolToScottTerm (x <= y))
+      Right (boolToTerm (x <= y))
     _ ->
       Left $ "Incorrect arguments for builtin lessThanEqualsFloat: "
                 ++ intercalate "," (map pretty xs)
 builtin "greaterThanFloat" xs =
   case xs of
     [PrimFloat x :$: [], PrimFloat y :$: []] ->
-      Right (boolToScottTerm (x > y))
+      Right (boolToTerm (x > y))
     _ ->
       Left $ "Incorrect arguments for builtin greaterThanFloat: "
                 ++ intercalate "," (map pretty xs)
 builtin "greaterThanEqualsFloat" xs =
   case xs of
     [PrimFloat x :$: [], PrimFloat y :$: []] ->
-      Right (boolToScottTerm (x >= y))
+      Right (boolToTerm (x >= y))
     _ ->
       Left $ "Incorrect arguments for builtin greaterThanEqualsFloat: "
                 ++ intercalate "," (map pretty xs)
 builtin "equalsFloat" xs =
   case xs of
     [PrimFloat x :$: [], PrimFloat y :$: []] ->
-      Right (boolToScottTerm (x == y))
+      Right (boolToTerm (x == y))
     _ ->
       Left $ "Incorrect arguments for builtin equalsFloat: "
                 ++ intercalate "," (map pretty xs)
@@ -245,7 +245,7 @@ builtin "sha3_256" xs =
 builtin "equalsByteString" xs =
   case xs of
     [PrimByteString x :$: [], PrimByteString y :$: []] ->
-      Right (boolToScottTerm (x == y))
+      Right (boolToTerm (x == y))
     _ ->
       Left $ "Incorrect arguments for builtin equalsByteString: "
                 ++ intercalate "," (map pretty xs)     

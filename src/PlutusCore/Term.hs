@@ -16,7 +16,6 @@
 
 module PlutusCore.Term where
 
-import PlutusShared.Qualified
 -- import PlutusShared.Type
 import Utils.ABT
 -- import Utils.Names
@@ -59,13 +58,13 @@ data PlutusSig
     
     -- Terms
     
-    Decname QualifiedName
+    Decname String
   | Isa
   | Abst
   | Inst
   | Lam
   | App
-  | Con QualifiedConstructor
+  | Con String
   | Case
   | Success
   | Failure
@@ -79,9 +78,9 @@ data PlutusSig
   
     -- Types
   
-  | DecnameT QualifiedName
+  | DecnameT String
   | FunT
-  | ConT QualifiedConstructor
+  | ConT String
   | CompT
   | ForallT Kind
   | IntegerT
@@ -93,7 +92,7 @@ data PlutusSig
   
     -- Clauses
   
-  | Clause QualifiedConstructor
+  | Clause String
   
   deriving (Eq)
 
@@ -132,7 +131,7 @@ isTerm m = not (isType m)
 
 
 
-decnameH :: QualifiedName -> Term
+decnameH :: String -> Term
 decnameH n = Decname n :$: []
 
 isaH :: Term -> Term -> Term
@@ -150,14 +149,14 @@ lamH v b = Lam :$: [scope [v] b]
 appH :: Term -> Term -> Term
 appH f x = App :$: [scope [] f, scope [] x]
 
-conH :: QualifiedConstructor -> [Term] -> Term
+conH :: String -> [Term] -> Term
 conH c xs = Con c :$: map (scope []) xs
 
 caseH :: Term -> [Clause] -> Term
 caseH a cs = Case :$: map (scope []) (a : cs)
 
-clauseH :: QualifiedConstructor -> [String] -> Term -> Clause
-clauseH qc vs b = Clause qc :$: [scope vs b]
+clauseH :: String -> [String] -> Term -> Clause
+clauseH c vs b = Clause c :$: [scope vs b]
 
 successH :: Term -> Term
 successH m = Success :$: [scope [] m]
@@ -183,14 +182,14 @@ primByteStringH x = PrimByteString x :$: []
 builtinH :: String -> [Term] -> Term
 builtinH n ms = Builtin n :$: map (scope []) ms
 
-decnameTH :: QualifiedName -> Term
-decnameTH qn = DecnameT qn :$: []
+decnameTH :: String -> Term
+decnameTH n = DecnameT n :$: []
 
 funTH :: Term -> Term -> Term
 funTH a b = FunT :$: [scope [] a, scope [] b]
 
-conTH :: QualifiedConstructor -> [Term] -> Term
-conTH qc as = ConT qc :$: map (scope []) as
+conTH :: String -> [Term] -> Term
+conTH c as = ConT c :$: map (scope []) as
 
 compTH :: Term -> Term
 compTH a = CompT :$: [scope [] a]
@@ -230,7 +229,7 @@ instance Parens Term where
   parenRec (Var v) =
     name v
   parenRec (Decname n :$: _) =
-    prettyQualifiedName n
+    n
   parenRec (Isa :$: [a,m]) =
     "(isa "
       ++ parenthesize Nothing (instantiate0 a)
@@ -263,7 +262,7 @@ instance Parens Term where
       ++ "]"
   parenRec (Con c :$: as) =
     "(con "
-      ++ prettyQualifiedConstructor c
+      ++ c
       ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
       ++ ")"
   parenRec (Case :$: (a:cs)) =
@@ -300,17 +299,17 @@ instance Parens Term where
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) ms)
       ++ ")"
-  parenRec (DecnameT qn :$: []) =
-    prettyQualifiedName qn
+  parenRec (DecnameT n :$: []) =
+    n
   parenRec (FunT :$: [a,b]) =
     "(fun "
       ++ parenthesize Nothing (instantiate0 a)
       ++ " "
       ++ parenthesize Nothing (instantiate0 b)
       ++ ")"
-  parenRec (ConT qc :$: as) =
+  parenRec (ConT c :$: as) =
     "(con "
-      ++ prettyQualifiedConstructor qc
+      ++ c
       ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
       ++ ")"
   parenRec (CompT :$: [a]) =
@@ -345,8 +344,8 @@ instance Parens Term where
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ "]"
-  parenRec (Clause qc :$: [sc]) =
-    "(" ++ prettyQualifiedConstructor qc
+  parenRec (Clause c :$: [sc]) =
+    "(" ++ c
         ++ " ("
         ++ unwords (names sc)
         ++ ") "

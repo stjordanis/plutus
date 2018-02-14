@@ -9,7 +9,6 @@
 module PlutusShared.BoolToTerm where
 
 import PlutusCore.Term
-import PlutusShared.Qualified
 
 import Utils.ABT
 import Utils.Vars
@@ -21,8 +20,8 @@ import Utils.Vars
 
 
 boolToTerm :: Bool -> Term
-boolToTerm True = conH (QualifiedConstructor "Prelude" "True") []
-boolToTerm False = conH (QualifiedConstructor "Prelude" "False") []
+boolToTerm True = conH "True" []
+boolToTerm False = conH "False" []
 
 
 

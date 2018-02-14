@@ -24,7 +24,6 @@ import PlutusCore.Contexts
 import PlutusCore.Elaborator
 import PlutusCore.Judgments
 import PlutusCore.EvaluatorTypes
-import PlutusShared.Qualified
 
 import Control.Monad.Except
 --import Control.Monad.State
@@ -42,11 +41,10 @@ import Data.List
 
 instance Decomposable () ElabError Judgment where
   decompose (ElabProgramJ prog) = programJ prog
-  decompose (ElabModuleJ ls mdl) = moduleJ ls mdl
-  decompose (ElabDeclJ l ls' nomctx decl) =
-    declJ l ls' nomctx decl
-  decompose (ElabAltJ l ls' nomctx alt ksigs) =
-    altJ l ls' nomctx alt ksigs
+  decompose (ElabDeclJ nomctx decl) =
+    declJ nomctx decl
+  decompose (ElabAltJ nomctx alt ksigs) =
+    altJ nomctx alt ksigs
   decompose (IsTypeJ ctx a) = isTypeJ ctx a
   decompose (IsTypeValueJ a) = isTypeValueJ a
   decompose (IsTermValueJ m) = isTermValueJ m
@@ -80,32 +78,14 @@ openScope ctx sc =
 
 
 
-nominalContextToTypeEnv :: Context -> QualifiedEnv
-nominalContextToTypeEnv (Context { currentModule = currl
-                                 , nominalContext = (ls,ds)
-                                 }) =
-  (ls >>= moduleToTypeEnv) ++ (ds >>= declarationToTypeEnv currl)
+nominalContextToTypeEnv :: Context -> Environment
+nominalContextToTypeEnv (Context { nominalContext = ds }) =
+  ds >>= declarationToTypeEnv
   where
-    moduleToTypeEnv :: Module -> QualifiedEnv
-    moduleToTypeEnv (Module l' _ _ ds') =
-      ds' >>= declarationToTypeEnv l'
-    
-    declarationToTypeEnv :: String -> Declaration -> QualifiedEnv
-    declarationToTypeEnv l (TypeDeclaration n t) =
-      [(QualifiedName l n, t)]
-    declarationToTypeEnv _ _ = []
+    declarationToTypeEnv :: Declaration -> Environment
+    declarationToTypeEnv (TypeDeclaration n t) = [(n, t)]
+    declarationToTypeEnv _ = []
 
-
-
-
-
-
-freshModuleName :: [Module] -> String -> Decomposer ()
-freshModuleName ls l =
-  unless (not (any (\(Module l' _ _ _) -> l == l') ls))
-    (failure
-      (ElabError
-        ("The module name " ++ l ++ " is already in used")))
 
 
 
@@ -117,7 +97,7 @@ freshTypeConstructor ds n =
     (failure
       (ElabError
         ("The data type " ++ n
-          ++ " has already been declared in this module")))
+          ++ " has already been declared")))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (DataDeclaration c _ _) = n /= c
@@ -134,7 +114,7 @@ freshTypeName ds n =
     (failure
       (ElabError
         ("The type name " ++ n
-          ++ " has already been declared in this module")))
+          ++ " has already been declared")))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (TypeDeclaration n' _) = n /= n'
@@ -151,7 +131,7 @@ freshTermConstructor ds n =
     (failure
       (ElabError
         ("The term constructor " ++ n
-          ++ " has already been declared in this module")))
+          ++ " has already been declared")))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (DataDeclaration _ _ alts) =
@@ -172,7 +152,7 @@ freshTermName ds nm =
     (failure
       (ElabError
         ("The term name " ++ nm
-          ++ " has already been declared in this module")))
+          ++ " has already been declared")))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (TermDeclaration nm' _) = nm /= nm'
@@ -189,7 +169,7 @@ undefinedTermName ds n =
     (failure
       (ElabError
         ("The term name " ++ n
-          ++ " has already been defined in this module")))
+          ++ " has already been defined")))
   where
     undefinedInDeclaration :: Declaration -> Bool
     undefinedInDeclaration (TermDefinition n' _ ) = n /= n'
@@ -202,22 +182,13 @@ undefinedTermName ds n =
 
 
 typeNameInContext
-  :: Context -> QualifiedName -> Decomposer Kind
-typeNameInContext ctx@(Context { currentModule = currl
-                               , nominalContext = (ls,ds)
-                               })
-                  nu@(QualifiedName l nm) =
-  if currl == l
-    then
-      findInDeclarations ds
-    else
-      findInModules ls
+  :: Context -> String -> Decomposer Kind
+typeNameInContext ctx@(Context { nominalContext = ds })
+                  nm =
+  
+  findInDeclarations ds
+  
   where
-    findInModules [] = err
-    findInModules (Module l' _ _ ds':ls')
-      | l == l' = findInDeclarations ds'
-      | otherwise = findInModules ls'
-    
     findInDeclarations [] = err
     findInDeclarations (TypeDeclaration nm' t:ds')
       | nm == nm' = goal (IsTypeJ ctx t)
@@ -226,29 +197,19 @@ typeNameInContext ctx@(Context { currentModule = currl
     
     err = failure
            (ElabError
-             ("Type name not in scope: " ++ prettyQualifiedName nu))
+             ("Type name not in scope: " ++ nm))
 
 
 
 
 
 typeConstructorInContext
-  :: Context -> QualifiedConstructor -> Decomposer [Kind]
-typeConstructorInContext (Context { currentModule = currl
-                                  , nominalContext = (ls,ds)
-                                  })
-                         kap@(QualifiedConstructor l nm) =
-  if currl == l
-    then
-      findInDeclarations ds
-    else
-      findInModules ls
+  :: Context -> String -> Decomposer [Kind]
+typeConstructorInContext (Context { nominalContext = ds})
+                         nm =
+  findInDeclarations ds
+  
   where
-    findInModules [] = err
-    findInModules (Module l' _ _ ds':ls')
-      | l == l' = findInDeclarations ds'
-      |otherwise = findInModules ls'
-    
     findInDeclarations [] = err
     findInDeclarations (DataDeclaration nm' ksigs _:ds')
       | nm == nm' = return [ k | KindSig _ k <- ksigs ]
@@ -258,35 +219,25 @@ typeConstructorInContext (Context { currentModule = currl
     err = failure
            (ElabError
              ("Type constructor not in scope: "
-               ++ prettyQualifiedConstructor kap))
+               ++ nm))
 
 
 
 termConstructorInContext
   :: Context
-  -> QualifiedConstructor
-  -> Decomposer ([Scope PlutusSig], QualifiedConstructor)
-termConstructorInContext (Context { currentModule = currl
-                                  , nominalContext = (ls,ds)
-                                  })
-                         c@(QualifiedConstructor l nm) =
-  if currl == l
-    then
-      findInDeclarations l ds
-    else
-      findInModules ls
+  -> String
+  -> Decomposer ([Scope PlutusSig], String)
+termConstructorInContext (Context { nominalContext = ds })
+                         nm =
+  findInDeclarations ds
+  
   where
-    findInModules [] = err
-    findInModules (Module l' _ _ ds':ls')
-      | l == l' = findInDeclarations l' ds'
-      | otherwise = findInModules ls'
-    
-    findInDeclarations _ [] = err
-    findInDeclarations l' (DataDeclaration nm' _ alts:ds') =
+    findInDeclarations [] = err
+    findInDeclarations (DataDeclaration nm' _ alts:ds') =
       case findAlt alts of
-        Nothing -> findInDeclarations l' ds'
-        Just ascs -> return (ascs, QualifiedConstructor l' nm')
-    findInDeclarations l' (_:ds') = findInDeclarations l' ds'
+        Nothing -> findInDeclarations ds'
+        Just ascs -> return (ascs, nm')
+    findInDeclarations (_:ds') = findInDeclarations ds'
     
     findAlt [] = Nothing
     findAlt (Alt nm' ascs:alts)
@@ -296,7 +247,7 @@ termConstructorInContext (Context { currentModule = currl
     err = failure
            (ElabError
              ("Term constructor not in scope: "
-               ++ prettyQualifiedConstructor c))
+               ++ nm))
 
 
 
@@ -304,22 +255,13 @@ termConstructorInContext (Context { currentModule = currl
 
 
 termNameInContext
-  :: Context -> QualifiedName -> Decomposer Term
-termNameInContext ctx@(Context { currentModule = currl
-                               , nominalContext = (ls,ds)
-                               })
-                  n@(QualifiedName l nm) =
-  if currl == l
-    then
-      findInDeclarations ds
-    else
-      findInModules ls
+  :: Context -> String -> Decomposer Term
+termNameInContext (Context { nominalContext = ds })
+                  nm =
+  
+  findInDeclarations ds
+  
   where
-    findInModules [] = err
-    findInModules (Module l' _ _ ds':ls')
-      | l == l' = findInDeclarations ds'
-      | otherwise = findInModules ls'
-    
     findInDeclarations [] = err
     findInDeclarations (TermDeclaration nm' tv:ds')
       | nm == nm' = return tv
@@ -328,7 +270,7 @@ termNameInContext ctx@(Context { currentModule = currl
     
     err = failure
            (ElabError
-             ("Term name not in scope: " ++ prettyQualifiedName n))
+             ("Term name not in scope: " ++ nm))
 
 
 
@@ -373,7 +315,7 @@ noRepeatedConstructors cls =
        (failure
          (ElabError
            ("The constructors "
-             ++ unwords [ "`" ++ prettyQualifiedConstructor c ++ "`"
+             ++ unwords [ "`" ++ c ++ "`"
                         | c <- repeats
                         ]
              ++ " occur in distinct clauses of a case term")))
@@ -384,33 +326,23 @@ noRepeatedConstructors cls =
 
 
 coversAllConstructors :: Context
-                      -> QualifiedConstructor
+                      -> String
                       -> [Clause]
                       -> Decomposer ()
-coversAllConstructors ctx (QualifiedConstructor l nm) cls =
-  do let cs = [ QualifiedConstructor l connm
-              | connm <- extractCons ctx
-              ]
+coversAllConstructors ctx nm cls =
+  do let cs = extractCons ctx
          missing = cs \\ [ c | Clause c :$: [_] <- cls ]
      unless (null missing)
        (failure
          (ElabError
            ("The constructors "
-             ++ unwords [ "`" ++ prettyQualifiedConstructor c ++ "`"
+             ++ unwords [ "`" ++ c ++ "`"
                         | c <- missing
                         ]
              ++ " are missing clauses in a case term")))
   where
-    extractCons (Context { currentModule = l'
-                         , nominalContext = (ls,ds)
-                         })
-      | l == l' = extractFromDeclarations ds
-      | otherwise = extractFromModules ls
-    
-    extractFromModules [] = []
-    extractFromModules (Module l' _ _ ds:ls)
-      | l == l' = extractFromDeclarations ds
-      | otherwise = extractFromModules ls
+    extractCons (Context { nominalContext = ds }) =
+      extractFromDeclarations ds
     
     extractFromDeclarations [] = []
     extractFromDeclarations (DataDeclaration nm' _ alts:ds)
@@ -440,28 +372,28 @@ signatureOfBuiltin n =
       , ("remainderInteger", ([integerTH, integerTH], integerTH))
       , ("lessThanInteger"
         ,  ( [integerTH, integerTH]
-           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-           , scottBool
+           , conTH "Bool" []
+           -- , scottBool
            ))
       , ("lessThanEqualsInteger"
         , ( [integerTH, integerTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("greaterThanInteger"
         , ( [integerTH, integerTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("greaterThanEqualsInteger"
         , ( [integerTH, integerTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("equalsInteger"
         ,  ( [integerTH, integerTH]
-           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-           , scottBool
+           , conTH "Bool" []
+           -- , scottBool
            ))
       , ("integerToFloat", ([integerTH], floatTH))
       , ("integerToByteString", ([integerTH], byteStringTH))
@@ -473,28 +405,28 @@ signatureOfBuiltin n =
       , ("divideFloat", ([floatTH, floatTH], floatTH))
       , ("lessThanFloat"
         ,  ( [floatTH, floatTH]
-           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-           , scottBool
+           , conTH "Bool" []
+           -- , scottBool
            ))
       , ("lessThanEqualsFloat"
         , ( [floatTH, floatTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("greaterThanFloat"
         , ( [floatTH, floatTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("greaterThanEqualsFloat"
         , ( [floatTH, floatTH]
-          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-          , scottBool
+          , conTH "Bool" []
+          -- , scottBool
           ))
       , ("equalsFloat"
         ,  ( [floatTH, floatTH]
-           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-           , scottBool
+           , conTH "Bool" []
+           -- , scottBool
            ))
       , ("ceil", ([floatTH], integerTH))
       , ("floor", ([floatTH], integerTH))
@@ -508,8 +440,8 @@ signatureOfBuiltin n =
       , ("sha3_256", ([byteStringTH], byteStringTH))
       , ("equalsByteString"
         ,  ( [byteStringTH, byteStringTH]
-           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
-           , scottBool
+           , conTH "Bool" []
+           -- , scottBool
            ))
       ]
     
@@ -531,7 +463,7 @@ synthCompBuiltin :: String -> Decomposer Term
 synthCompBuiltin "txhash" = return byteStringTH
 synthCompBuiltin "blocknum" = return integerTH
 synthCompBuiltin "blocktime" =
-  return (conTH (QualifiedConstructor "(con" "DateTime") [])
+  return (conTH "DateTime" [])
 synthCompBuiltin n =
   failure (ElabError ("Unknown computation builtin: " ++ n))
 
@@ -542,99 +474,34 @@ synthCompBuiltin n =
 
 
 programJ :: Program -> Decomposer ()
-programJ (Program modules) =
-  forM_ (zip (inits modules) modules) $ \(ls, l) ->
-    goal (ElabModuleJ ls l)
+programJ (Program decls) =
+  forM_ (zip (inits decls) decls) $ \(ds, d) ->
+    goal (ElabDeclJ ds d)
 
 
 
 
 
 
-moduleJ :: [Module] -> Module -> Decomposer ()
-moduleJ ls (Module l ls' (Exports tyexp tmexp) decls) =
-  do freshModuleName ls l
-     typeExportsAreValid tyexp decls
-     termExportsAreValid tmexp decls
-     forM_ (zip (inits decls) decls) $ \(ds,d) ->
-       goal (ElabDeclJ l ls' (ls,ds) d)
-  where
-    typeExportsAreValid :: [TypeExport] -> [Declaration] -> Decomposer ()
-    typeExportsAreValid [] _ = return ()
-    typeExportsAreValid (TypeNameExport nu : tx) ds =
-      if any (declaresTypeName nu) ds
-         then typeExportsAreValid tx ds
-         else failure
-                (ElabError
-                  ("Could not export the type name `" ++ nu
-                    ++ "` since the module " ++ l ++ " does not declare it"))
-    typeExportsAreValid (TypeConstructorExport kap cs : tx) ds =
-      case find (declaresData kap) ds of
-        Just (DataDeclaration _ _ alts) ->
-          case cs \\ [ c | Alt c _ <- alts ] of
-            [] -> typeExportsAreValid tx ds
-            missing ->
-              failure
-                (ElabError
-                  ("Could not export the term constructors "
-                    ++ intercalate ", " [ "`" ++ c ++ "`" | c <- missing ]
-                    ++ " since the module " ++ l ++ " does not declare them"))
-        _ ->
-          failure
-            (ElabError
-              ("Could not export the type constructor `" ++ kap
-                ++ "` since the module " ++ l ++ " does not declare it"))
-    
-    declaresTypeName :: String -> Declaration -> Bool
-    declaresTypeName nu (TypeDeclaration nu' _) = nu == nu'
-    declaresTypeName _ _ = False
-    
-    declaresData :: String -> Declaration -> Bool
-    declaresData kap (DataDeclaration kap' _ _) = kap == kap'
-    declaresData _ _ = False
-    
-    termExportsAreValid :: [String] -> [Declaration] -> Decomposer ()
-    termExportsAreValid ns ds =
-      case ns \\ [ n | TermDeclaration n _ <- ds ] of
-        [] -> return ()
-        missing ->
-          failure
-            (ElabError
-              ("Could not export the term names "
-                ++ intercalate ", " [ "`" ++ n ++ "`" | n <- missing ]
-                ++ " since the module " ++ l ++ " does not declare them"))
---     data TypeExport = TypeNameExport String
---                 | TypeConstructorExport String [String]
--- 
--- data Exports = Exports [TypeExport] [String]
-
-
-
-
-
-declJ :: String
-      -> [String]
-      -> NominalContext
+declJ :: NominalContext
       -> Declaration
       -> Decomposer ()
-declJ l ls' (ls,ds) (DataDeclaration tcn ksigs alts) =
+declJ ds (DataDeclaration tcn ksigs alts) =
   do freshTypeConstructor ds tcn
      let nomctxAddition = DataDeclaration tcn ksigs []
      forM_ alts $ \alt ->
        goal (ElabAltJ
-              l
-              ls'
-              (ls, nomctxAddition:ds)
+              (nomctxAddition:ds)
               alt
               ksigs)
-declJ l ls' nomctx@(_,ds) (TypeDeclaration tnm u) =
+declJ ds (TypeDeclaration tnm u) =
   do freshTypeName ds tnm
      goal (IsTypeValueJ u)
-     _ <- goal (IsTypeJ (Context l ls' nomctx []) u)
+     _ <- goal (IsTypeJ (Context ds []) u)
      return ()
-declJ l ls' nomctx@(_,ds) (TermDeclaration nm t) =
+declJ ds (TermDeclaration nm t) =
   do freshTermName ds nm
-     k <- goal (IsTypeJ (Context l ls' nomctx []) t)
+     k <- goal (IsTypeJ (Context ds []) t)
      case k of
        TypeK -> return ()
        _ -> failure
@@ -643,34 +510,32 @@ declJ l ls' nomctx@(_,ds) (TermDeclaration nm t) =
                   ++ pretty t ++ " which should have kind "
                   ++ prettyKind TypeK ++ " but which actually has kind "
                   ++ prettyKind k))
-declJ l ls' nomctx@(_,ds) (TermDefinition nm v) =
+declJ ds (TermDefinition nm v) =
   do undefinedTermName ds nm
      u <- termNameInContext
-            (Context l ls' nomctx [])
-            (QualifiedName l nm)
+            (Context ds [])
+            nm
      goal (IsTermValueJ v)
-     let tenv = nominalContextToTypeEnv (Context l ls' nomctx [])
+     let tenv = nominalContextToTypeEnv (Context ds [])
          normal_u = evaluateType tenv u
-     goal (CheckJ (Context l ls' nomctx []) normal_u v)
+     goal (CheckJ (Context ds []) normal_u v)
 
 
 
 
 
-altJ :: String
-     -> [String]
-     -> NominalContext
+altJ :: NominalContext
      -> Alt
      -> [KindSig]
      -> Decomposer ()
-altJ l ls' nomctx@(_,ds) (Alt cn ascs) ksigs =
+altJ ds (Alt cn ascs) ksigs =
   do freshTermConstructor ds cn
      let hypctx = [ HasKind x k | KindSig x k <- ksigs ]
          xs =  [ Var (Free (FreeVar x)) | KindSig x _ <- ksigs ]
      forM_ ascs $ \asc ->
        do k' <- goal
                   (IsTypeJ
-                    (Context l ls' nomctx hypctx)
+                    (Context ds hypctx)
                     (instantiate asc xs))
           unless (k' == TypeK)
             (failure
@@ -718,7 +583,7 @@ isTypeJ ctx (ConT c :$: as) =
      unless (length as == length ks)
        (failure
          (ElabError
-           ("Type constructor `" ++ prettyQualifiedConstructor c
+           ("Type constructor `" ++ c
              ++ "` expects " ++ show (length ks)
              ++ " arguments but was given "
              ++ show (length as))))
@@ -728,7 +593,7 @@ isTypeJ ctx (ConT c :$: as) =
             unless (k == k')
               (failure
                 (ElabError
-                  ("Type constructor `" ++ prettyQualifiedConstructor c
+                  ("Type constructor `" ++ c
                     ++ "` expects an argument of kind `"
                     ++ prettyKind k
                     ++ "` but was given an argument of kind `"
@@ -884,16 +749,16 @@ checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
        (failure
          (ElabError
            ("Term constructor `"
-             ++ prettyQualifiedConstructor c'
+             ++ c'
              ++ "` constructs a term in the type `"
-             ++ prettyQualifiedConstructor tc
+             ++ tc
              ++ "` but is being checked against `"
-             ++ prettyQualifiedConstructor c)))
+             ++ c)))
      unless (length bscs == length ms)
        (failure
          (ElabError
            ("Term constructor `"
-             ++ prettyQualifiedConstructor c'
+             ++ c'
              ++ "` expects " ++ show (length bscs)
              ++ " arguments but was given " ++ show (length ms))))
      let as' = map instantiate0 as
@@ -1050,7 +915,7 @@ synthJ _ a =
 
 clauseJ
   :: Context
-  -> QualifiedConstructor
+  -> String
   -> [Term]
   -> Term
   -> Clause
@@ -1061,16 +926,16 @@ clauseJ ctx tc as t (Clause c :$: [sc]) =
        (failure
          (ElabError
            ("Term constructor `"
-             ++ prettyQualifiedConstructor c
+             ++ c
              ++ "` constructs a term in the type `"
-             ++ prettyQualifiedConstructor tc
+             ++ tc
              ++ "` but is being checked against `"
-             ++ prettyQualifiedConstructor tc')))
+             ++ tc')))
      unless (length bscs == length (names sc))
        (failure
          (ElabError
            ("Term constructor `"
-             ++ prettyQualifiedConstructor c
+             ++ c
              ++ "` expects " ++ show (length bscs)
              ++ " arguments but was given " ++ show (length (names sc)))))
      let (_, ns, m) = openScope (hypotheticalContext ctx) sc
@@ -1101,7 +966,7 @@ equalJ _ (Var x) (Var y) =
                ++ "` and `"
                ++ name y
                ++ "`"))
-equalJ ctx@(Context l ls' nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
+equalJ ctx@(Context nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
   if c /= c'
   then failure
          (ElabError
@@ -1113,7 +978,7 @@ equalJ ctx@(Context l ls' nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
   else forM_ (zip scs scs') $ \(sc,sc') ->
          do let (xs, ns, m) = openScope (hypotheticalContext ctx) sc
                 m' = instantiate sc' (map (Var . Free) xs)
-                tenv = nominalContextToTypeEnv (Context l ls' nomctx [])
+                tenv = nominalContextToTypeEnv (Context nomctx [])
                 normal_m = evaluateType tenv m
                 normal_m' = evaluateType tenv m'
                 ctx' = ctx { hypotheticalContext =

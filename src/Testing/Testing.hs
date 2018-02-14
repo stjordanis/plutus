@@ -17,7 +17,6 @@ import PlutusCore.Judgments
 import PlutusCore.Parser
 import PlutusCore.Program
 import PlutusCore.Term
-import PlutusShared.Qualified
 
 import Utils.ABT
 import Utils.Pretty
@@ -32,18 +31,13 @@ import System.IO
 
 
 
-extractDefinitions :: Program -> QualifiedEnv
-extractDefinitions (Program modules) =
-  modules >>= moduleToDefinitions
+extractDefinitions :: Program -> Environment
+extractDefinitions (Program decls) =
+  decls >>= declToDefinitions
   where
-    moduleToDefinitions :: Module -> QualifiedEnv
-    moduleToDefinitions (Module l _ _ decls) =
-      decls >>= declToDefinitions l
-    
-    declToDefinitions :: String -> Declaration -> QualifiedEnv
-    declToDefinitions l (TermDefinition n v) =
-      [(QualifiedName l n , v)]
-    declToDefinitions _ _ = []
+    declToDefinitions :: Declaration -> Environment
+    declToDefinitions (TermDefinition n v) = [(n , v)]
+    declToDefinitions _ = []
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
@@ -57,20 +51,16 @@ readPrompt prompt = flushStr prompt >> getLine
 printError :: String -> IO ()
 printError e = flushLine ("ERROR: " ++ e)
 
-evalAndPrintTerm :: Program -> QualifiedEnv -> Term -> IO ()
-evalAndPrintTerm (Program ls) env m =
+evalAndPrintTerm :: Program -> Environment -> Term -> IO ()
+evalAndPrintTerm (Program decls) env m =
   case runElaborator
-         (PD.elaborator (SynthJ (Context "Main"
-                                         ["Prelude"]
-                                         (ls,[])
-                                         [])
-                                m)) of
+         (PD.elaborator (SynthJ (Context decls []) m)) of
     Left e -> printError (PD.showElabError e)
     Right _ -> case evaluate undefined env 1000000 m of
       Left e' -> printError e'
       Right v -> flushLine (pretty v)
 
-evalAndPrint :: Program -> QualifiedEnv -> String -> IO ()
+evalAndPrint :: Program -> Environment -> String -> IO ()
 evalAndPrint prog env s =
   case parseTerm s of
     Left e -> printError e
@@ -97,39 +87,39 @@ interpretPromptCommand s =
 
 getType :: Program -> String -> IO ()
 getType prog s =
-  case parseQualifiedName s of
+  case parseName s of
     Left e -> printError e
-    Right qn ->
-      case typeForQualifiedName prog qn of
+    Right n ->
+      case typeForName prog n of
         Nothing ->
-          printError ("There is no term named " ++ prettyQualifiedName qn)
+          printError ("There is no term named " ++ n)
         Just t ->
           flushLine (pretty t)
 
 getDefinition :: Program -> String -> IO ()
 getDefinition prog s =
-  case parseQualifiedName s of
+  case parseName s of
     Left e -> printError e
-    Right qn ->
-      case definitionForQualifiedName prog qn of
+    Right n ->
+      case definitionForName prog n of
         Nothing ->
-          printError ("There is no term named " ++ prettyQualifiedName qn)
+          printError ("There is no term named " ++ n)
         Just m ->
           flushLine (pretty m)
 
-evalAndPrintPrefixedOnValue :: Program -> QualifiedEnv -> String -> IO ()
+evalAndPrintPrefixedOnValue :: Program -> Environment -> String -> IO ()
 evalAndPrintPrefixedOnValue prog env s =
-  case parseQualifiedNamePrefixThenTerm s of
+  case parseNamePrefixThenTerm s of
     Left e -> printError e
-    Right (qn,m) ->
-      case namesWithQualifiedNameAsPrefix prog qn of
+    Right (pre,m) ->
+      case namesWithNameAsPrefix prog pre of
         [] ->
-          flushLine ("There are no terms named " ++ prettyQualifiedName qn)
+          flushLine ("There are no terms beginning `" ++ pre ++ "'")
         ns -> forM_ ns $ \n ->
-          do flushStr ("Testing " ++ prettyQualifiedName n ++ ": ")
+          do flushStr ("Testing " ++ n ++ ": ")
              evalAndPrintTerm prog env (appH (Decname n :$: []) m)
 
-replLoop :: Program -> QualifiedEnv -> IO ()
+replLoop :: Program -> Environment -> IO ()
 replLoop prog env = hSetBuffering stdin LineBuffering >> continue
   where
     continue =
@@ -147,7 +137,7 @@ repl src0 = case loadProgram src0 of
              Right (prog,dctx) -> replLoop prog dctx
   where
     loadProgram
-      :: String -> Either String (Program, QualifiedEnv)
+      :: String -> Either String (Program, Environment)
     loadProgram src =
       do prog <- parseProgram src
          mapLeft PD.showElabError

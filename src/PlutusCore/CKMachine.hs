@@ -12,7 +12,6 @@ import PlutusCore.EvaluatorTypes
 import PlutusCore.PatternMatching
 import PlutusCore.Term
 --import PlutusShared.BoolToTerm
-import PlutusShared.Qualified
 import Utils.ABT
 --import Utils.Env
 --import Utils.Names
@@ -32,14 +31,14 @@ data CKFrame = InIsaL Term
              | InInstR Term
              | InAppLeft Term
              | InAppRight Term
-             | InCon QualifiedConstructor [Term] [Term]
+             | InCon String [Term] [Term]
              | InCase [Clause]
              | InSuccess
              | InBind (Scope PlutusSig)
              | InBuiltin String [Term] [Term]
              | InFunTL Term
              | InFunTR Term
-             | InConT QualifiedConstructor [Term] [Term]
+             | InConT String [Term] [Term]
              | InCompT
              | InAppTL Term
              | InAppTR Term
@@ -57,14 +56,14 @@ data BlockChainInfo =
 
 
 
-rec :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
+rec :: Petrol -> BlockChainInfo -> Environment -> CKStack -> Term -> Either String Term
 rec 0 _ _ _ _ = Left "Out of petrol."
 rec petrol bci denv stk (Var x) =
   ret (petrol - 1) bci denv stk (Var x) --Left ("Unbound variable: " ++ name x)
 rec petrol bci denv stk (Decname n :$: []) =
   case lookup n denv of
     Nothing ->
-      Left ("Unknown constant/defined term: " ++ prettyQualifiedName n)
+      Left ("Unknown constant/defined term: " ++ n)
     Just m ->
       rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (Isa :$: [a,m]) =
@@ -108,15 +107,15 @@ rec petrol bci denv stk (Builtin n :$: (m:ms)) =
 rec petrol bci denv stk (DecnameT n :$: []) =
   case lookup n denv of
     Nothing ->
-      Left ("Unknown constant/defined type: " ++ prettyQualifiedName n)
+      Left ("Unknown constant/defined type: " ++ n)
     Just m ->
       rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (FunT :$: [a,b]) =
   rec (petrol - 1) bci denv (InFunTL (instantiate0 b) : stk) (instantiate0 a)
-rec petrol bci denv stk (ConT qc :$: []) =
-  ret (petrol - 1) bci denv stk (ConT qc :$: [])
-rec petrol bci denv stk (ConT qc :$: (a:as)) =
-  rec (petrol - 1) bci denv (InConT qc [] (map instantiate0 as) : stk) (instantiate0 a)
+rec petrol bci denv stk (ConT c :$: []) =
+  ret (petrol - 1) bci denv stk (ConT c :$: [])
+rec petrol bci denv stk (ConT c :$: (a:as)) =
+  rec (petrol - 1) bci denv (InConT c [] (map instantiate0 as) : stk) (instantiate0 a)
 rec petrol bci denv stk (CompT :$: [a]) =
   rec (petrol - 1) bci denv (InCompT : stk) (instantiate0 a)
 rec petrol bci denv stk (ForallT k :$: [sc]) =
@@ -139,7 +138,7 @@ rec _ _ _ _ _ =
 
 
 
-ret :: Petrol -> BlockChainInfo -> QualifiedEnv -> CKStack -> Term -> Either String Term
+ret :: Petrol -> BlockChainInfo -> Environment -> CKStack -> Term -> Either String Term
 ret 0 _ _ _ _ = Left "Out of petrol."
 ret _ _ _ [] tm = Right tm
 ret petrol bci denv (InIsaL m' : stk) _ =
@@ -195,10 +194,10 @@ ret petrol bci denv (InFunTL b : stk) a' =
   rec (petrol - 1) bci denv (InFunTR a' : stk) b
 ret petrol bci denv (InFunTR a' : stk) b' =
   ret (petrol - 1) bci denv stk (funTH a' b')
-ret petrol bci denv (InConT qc revas' [] : stk) a' =
-  ret (petrol - 1) bci denv stk (conTH qc (reverse (a':revas')))
-ret petrol bci denv (InConT qc revas' (a2:as) : stk) a' =
-  rec (petrol - 1) bci denv (InConT qc (a':revas') as : stk) a2
+ret petrol bci denv (InConT c revas' [] : stk) a' =
+  ret (petrol - 1) bci denv stk (conTH c (reverse (a':revas')))
+ret petrol bci denv (InConT c revas' (a2:as) : stk) a' =
+  rec (petrol - 1) bci denv (InConT c (a':revas') as : stk) a2
 ret petrol bci denv (InCompT : stk) a' = 
   ret (petrol - 1) bci denv stk (compTH a')
 ret petrol bci denv (InAppTL a : stk) f' =
@@ -211,5 +210,5 @@ ret petrol bci denv (InAppTR f' : stk) a' =
 
 
 
-evaluate :: BlockChainInfo -> QualifiedEnv -> Petrol -> Term -> Either String Term
+evaluate :: BlockChainInfo -> Environment -> Petrol -> Term -> Either String Term
 evaluate bci denv ptrl tm = rec ptrl bci denv [] tm

@@ -15,7 +15,6 @@ module PlutusCore.Judgments where
 import PlutusCore.Contexts
 import PlutusCore.Program
 import PlutusCore.Term
-import PlutusShared.Qualified
 
 
 
@@ -24,29 +23,62 @@ import PlutusShared.Qualified
 
 
 data Judgment r where
-  IsTypeJ :: Context -> Term -> Judgment Kind
-  IsTypeValueJ :: Term -> Judgment ()
-  IsTermValueJ :: Term -> Judgment ()
-  CheckJ :: Context -> Term -> Term -> Judgment ()
-  SynthJ :: Context -> Term -> Judgment Term
-  ClauseJ :: Context
-          -> QualifiedConstructor
-          -> [Term]
+  
+  -- Θ ⊢ A :: K
+  IsTypeJ :: Context
           -> Term
+          -> Judgment Kind
+  
+  -- A tyval
+  IsTypeValueJ :: Term
+               -> Judgment ()
+  
+  -- M val
+  IsTermValueJ :: Term
+               -> Judgment ()
+  
+  -- Θ ⊢ A ∋ M
+  CheckJ :: Context
+         -> Term
+         -> Term
+         -> Judgment ()
+  
+  -- Θ ⊢ M ∈ A
+  SynthJ :: Context
+         -> Term
+         -> Judgment Term
+  
+  -- Θ ; κ A* ⊢ C ∋ cl
+  ClauseJ :: Context
+          -> String
+          -> [Type]
+          -> Type
           -> Clause
           -> Judgment ()
-  EqualJ :: Context -> Term -> Term -> Judgment ()
-  EqualAllJ :: Context -> Term -> [Term] -> Judgment ()
-  ElabProgramJ :: Program -> Judgment ()
-  ElabModuleJ :: [Module] -> Module -> Judgment ()
-  ElabDeclJ :: String
-            -> [String]
-            -> NominalContext
+  
+  -- Θ ⊢ A = B
+  EqualJ :: Context
+         -> Type
+         -> Type
+         -> Judgment ()
+  
+  -- Θ ⊢ A* = B*
+  EqualAllJ :: Context
+            -> Term
+            -> [Term]
+            -> Judgment ()
+  
+  -- Δ ⊢ P program
+  ElabProgramJ :: Program
+               -> Judgment ()
+  
+  -- Δ ⊢ D decl
+  ElabDeclJ :: NominalContext
             -> Declaration
             -> Judgment ()
-  ElabAltJ :: String
-           -> [String]
-           -> NominalContext
+  
+  -- Δ ⊢ a alt (α* K*)
+  ElabAltJ :: NominalContext
            -> Alt
            -> [KindSig]
            -> Judgment ()

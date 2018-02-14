@@ -11,7 +11,6 @@ module PlutusCore.Program where
 
 import Utils.ABT
 import Utils.Pretty
-import PlutusShared.Qualified
 import PlutusCore.Term
 
 import Data.List (isPrefixOf)
@@ -83,56 +82,6 @@ prettyDeclaration (TermDefinition n v) =
 
 
 
-type Imports = [String]
-
-data TypeExport = TypeNameExport String
-                | TypeConstructorExport String [String]
-
-data Exports = Exports [TypeExport] [String]
-
-
-
-
-
--- | A `Module` is a named collection of declarations.
-
-data Module = Module String Imports Exports [Declaration]
-
-prettyModule :: Module -> String
-prettyModule (Module l impd expd decls) =
-  "(module "
-    ++ l
-    ++ " "
-    ++ prettyImports impd
-    ++ " "
-    ++ prettyExports expd
-    ++ " "
-    ++ unwords (map prettyDeclaration decls)
-    ++ ")"
-  where
-    prettyImports ls =
-      "(imported "
-        ++ unwords ls
-        ++ ")"
-    prettyExports (Exports typeExports termExports) =
-      "(exported "
-          ++ "("
-          ++ unwords (map prettyExport typeExports)
-          ++ ")"
-        ++ " "
-          ++ "("
-          ++ unwords termExports
-          ++ ")"
-        ++ ")"
-    prettyExport (TypeNameExport n) = n
-    prettyExport (TypeConstructorExport c cs) =
-      "("
-        ++ c
-        ++ " "
-          ++ "("
-          ++ unwords cs
-          ++ ")"
-        ++ ")"
 
 
 
@@ -141,11 +90,11 @@ prettyModule (Module l impd expd decls) =
 -- | A `Program` is a collection of modules.
 
 data Program =
-  Program [Module]
+  Program [Declaration]
 
 prettyProgram :: Program -> String
-prettyProgram (Program mods) =
-  "(program " ++ unwords (map prettyModule mods) ++ ")"
+prettyProgram (Program decls) =
+  "(program " ++ unwords (map prettyDeclaration decls) ++ ")"
 
 
 
@@ -154,48 +103,33 @@ firstJust [] = Nothing
 firstJust (Nothing:xs) = firstJust xs
 firstJust (Just x:_) = Just x
 
-typeForQualifiedName :: Program -> QualifiedName -> Maybe Type
-typeForQualifiedName (Program ls) (QualifiedName l n) =
-  firstJust (map typeForQualifiedNameModule ls)
+typeForName :: Program -> String -> Maybe Type
+typeForName (Program decls) n =
+  firstJust (map typeForNameDecl decls)
   where
-    typeForQualifiedNameModule :: Module -> Maybe Type
-    typeForQualifiedNameModule (Module l' _ _ decls) | l == l' =
-      firstJust (map typeForQualifiedNameDecl decls)
-    typeForQualifiedNameModule _ = Nothing
-    
-    typeForQualifiedNameDecl :: Declaration -> Maybe Type
-    typeForQualifiedNameDecl (TermDeclaration n' t) | n == n' = Just t
-    typeForQualifiedNameDecl _ = Nothing
+    typeForNameDecl :: Declaration -> Maybe Type
+    typeForNameDecl (TermDeclaration n' t) | n == n' = Just t
+    typeForNameDecl _ = Nothing
 
 
 
 
-definitionForQualifiedName :: Program -> QualifiedName -> Maybe Type
-definitionForQualifiedName (Program ls) (QualifiedName l n) =
-  firstJust (map definitionForQualifiedNameModule ls)
+definitionForName :: Program -> String -> Maybe Type
+definitionForName (Program decls) n =
+  firstJust (map definitionForNameDecl decls)
   where
-    definitionForQualifiedNameModule :: Module -> Maybe Type
-    definitionForQualifiedNameModule (Module l' _ _ decls) | l == l' =
-      firstJust (map definitionForQualifiedNameDecl decls)
-    definitionForQualifiedNameModule _ = Nothing
-
-    definitionForQualifiedNameDecl :: Declaration -> Maybe Type
-    definitionForQualifiedNameDecl (TermDefinition n' m) | n == n' = Just m
-    definitionForQualifiedNameDecl _ = Nothing
+    definitionForNameDecl :: Declaration -> Maybe Type
+    definitionForNameDecl (TermDefinition n' m) | n == n' = Just m
+    definitionForNameDecl _ = Nothing
 
 
 
 
-namesWithQualifiedNameAsPrefix :: Program -> QualifiedName -> [QualifiedName]
-namesWithQualifiedNameAsPrefix (Program ls) (QualifiedName l n) =
-  ls >>= namesWithQualifiedNameAsPrefixModule
+namesWithNameAsPrefix :: Program -> String -> [String]
+namesWithNameAsPrefix (Program decls) n =
+  decls >>= namesWithNameAsPrefixDecl
   where
-    namesWithQualifiedNameAsPrefixModule :: Module -> [QualifiedName]
-    namesWithQualifiedNameAsPrefixModule (Module l' _ _ decls) | l == l' =
-      decls >>= namesWithQualifiedNameAsPrefixDecl
-    namesWithQualifiedNameAsPrefixModule _ = []
-
-    namesWithQualifiedNameAsPrefixDecl :: Declaration -> [QualifiedName]
-    namesWithQualifiedNameAsPrefixDecl (TermDefinition n' m)
-      | isPrefixOf n n' = [QualifiedName l n']
-    namesWithQualifiedNameAsPrefixDecl _ = []
+    namesWithNameAsPrefixDecl :: Declaration -> [String]
+    namesWithNameAsPrefixDecl (TermDefinition n' _)
+      | isPrefixOf n n' = [n']
+    namesWithNameAsPrefixDecl _ = []

@@ -14,7 +14,6 @@ module PlutusCore.Parser where
 
 import PlutusCore.Program
 import PlutusCore.Term
-import PlutusShared.Qualified
 import Utils.ABT
 import Utils.Vars
 
@@ -46,14 +45,13 @@ languageDef = Token.LanguageDef
                 , Token.opStart = oneOf ""
                 , Token.opLetter = oneOf ""
                 , Token.reservedNames =
-                    ["qual","qualcon"
-                    ,"decname","let","lam","app","con","case","cl"
+                    ["decname","let","lam","app","con","case","cl"
                     ,"success","failure","txhash","blocknum","blocktime","bind"
                     ,"primInt","primFloat","primByteString","builtin"
                     ,"isFun","isCon","isConName","isInt","isFloat","isByteString"
                     ,"program","module","exp","loc","expcon","loccon"
                     ]
-                , Token.reservedOpNames = ["."]
+                , Token.reservedOpNames = []
                 , Token.caseSensitive = True
                 }
 
@@ -219,32 +217,6 @@ conName =
 
 
 
-moduleName :: Parsec String u String
-moduleName =
-  lexeme $ do
-    first <- upper
-    rest <- many (alphaNum <|> oneOf "_'")
-    return $ first:rest
-
-
-
-qualName :: Parsec String u QualifiedName
-qualName =
-  lexeme $ do
-    l <- moduleName
-    reservedOp "."
-    n <- declaredName
-    return $ QualifiedName l n
-
-
-
-qualCon :: Parsec String u QualifiedConstructor
-qualCon =
-  lexeme $ do
-    l <- moduleName
-    reservedOp "."
-    c <- conName
-    return $ QualifiedConstructor l c
 
 
 
@@ -299,8 +271,8 @@ variable =
 
 decname :: Parsec String u Term
 decname =
-  do qn <- qualName
-     return $ decnameH qn
+  do n <- declaredName
+     return $ decnameH n
 
 
 
@@ -352,9 +324,9 @@ application =
 conData :: Parsec String u Term
 conData =
   construct "con" $ do
-    qc <- qualCon
+    c <- conName
     ms <- many term
-    return $ conH qc ms
+    return $ conH c ms
 
 
 
@@ -370,10 +342,10 @@ caseTerm =
 clause :: Parsec String u Clause
 clause =
   parens $ do
-    qc <- qualCon
+    c <- conName
     xs <- parens (many variableName)
     m <- term
-    return $ clauseH qc xs m
+    return $ clauseH c xs m
 
 
 
@@ -458,8 +430,8 @@ variableT =
 
 decnameT :: Parsec String u Term
 decnameT =
-  do qn <- qualName
-     return $ decnameTH qn
+  do n <- declaredName
+     return $ decnameTH n
 
 funT :: Parsec String u Term
 funT =
@@ -471,9 +443,9 @@ funT =
 conT :: Parsec String u Term
 conT =
   construct "con" $ do
-    qc <- qualCon
+    c <- conName
     as <- many typep
-    return $ conTH qc as
+    return $ conTH c as
 
 compT :: Parsec String u Term
 compT =
@@ -543,58 +515,8 @@ funK =
 program :: Parsec String u Program
 program =
   construct "program" $ do
-    ls <- many modle
-    return $ Program ls
-
-
-modle :: Parsec String u Module
-modle =
-  construct "module" $ do
-    l <- moduleName
-    impd <- imprts
-    expd <- exprts
     decls <- many declaration
-    return $ Module l impd expd decls
-
-
-imprts :: Parsec String u Imports
-imprts =
-  construct "import" $ do
-    ls <- many moduleName
-    return ls
-
-
-exprts :: Parsec String u Exports
-exprts =
-  construct "export" $ do
-    typeExports <- parens (many typeExport)
-    ns <- parens (many variableName)
-    return $ Exports typeExports ns
-
-
-
-typeExport :: Parsec String u TypeExport
-typeExport =
-      typeNameExport
-  <|> typeConstructorExport
-
-
-
-typeNameExport :: Parsec String u TypeExport
-typeNameExport =
-  do x <- declaredName
-     return $ TypeNameExport x
-
-
-
-typeConstructorExport :: Parsec String u TypeExport
-typeConstructorExport =
-  parens $ do
-    c <- conName
-    cs <- parens (many conName)
-    return $ TypeConstructorExport c cs
-
-
+    return $ Program decls
 
 declaration :: Parsec String u Declaration
 declaration =
@@ -625,27 +547,34 @@ alt ns =
   parens $ do
     c <- conName
     ts <- many typep
-    return $ Alt c (map (scope ns) ts)
+    return $
+      Alt c
+          (map (freeToDefinedScope (\n0 -> Decname n0 :$: [])
+                 . scope ns)
+               ts)
 
 typeDeclaration :: Parsec String u Declaration
 typeDeclaration =
   construct "type" $ do
     n <- declaredName
-    tv <- typep
+    tv0 <- typep
+    let tv = freeToDefined (\n0 -> DecnameT n0 :$: []) tv0
     return $ TypeDeclaration n tv
 
 termDeclaration :: Parsec String u Declaration
 termDeclaration =
   construct "declare" $ do
     n <- declaredName
-    v <- typep
-    return $ TermDeclaration n v
+    t0 <- typep
+    let t = freeToDefined (\n0 -> DecnameT n0 :$: []) t0
+    return $ TermDeclaration n t
 
 termDefinition :: Parsec String u Declaration
 termDefinition =
   construct "define" $ do
     n <- declaredName
-    v <- term
+    v0 <- term
+    let v = freeToDefined (\n0 -> Decname n0 :$: []) v0
     return $ TermDefinition n v
 
 
@@ -664,13 +593,13 @@ parseProgram = parseExactly program
 parseTerm :: String -> Either String Term
 parseTerm = parseExactly term
 
-parseQualifiedName :: String -> Either String QualifiedName
-parseQualifiedName = parseExactly qualName
+parseName :: String -> Either String String
+parseName = parseExactly declaredName
 
-parseQualifiedNamePrefixThenTerm
-  :: String -> Either String (QualifiedName,Term)
-parseQualifiedNamePrefixThenTerm =
+parseNamePrefixThenTerm
+  :: String -> Either String (String,Term)
+parseNamePrefixThenTerm =
   parseExactly $
-    do qn <- qualName
+    do n <- declaredName
        m <- term
-       return (qn,m)
+       return (n,m)

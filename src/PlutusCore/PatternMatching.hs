@@ -9,7 +9,6 @@
 module PlutusCore.PatternMatching where
 
 import PlutusCore.Term
-import PlutusShared.Qualified
 import Utils.ABT
 
 -- import Control.Monad
@@ -20,7 +19,7 @@ import Utils.ABT
 
 
 
-matchPattern :: QualifiedConstructor -> Int -> Term -> Maybe [Term]
+matchPattern :: String -> Int -> Term -> Maybe [Term]
 matchPattern c l (Con c' :$: as)
   | c == c' && l == length as =
     Just (map instantiate0 as)
