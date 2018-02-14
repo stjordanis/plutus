@@ -1,11 +1,14 @@
 {-# OPTIONS -Wall #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+--{-# LANGUAGE FlexibleContexts #-}
+--{-# LANGUAGE FlexibleInstances #-}
+--{-# LANGUAGE Rank2Types #-}
+--{-# LANGUAGE StandaloneDeriving #-}
+--{-# LANGUAGE TypeSynonymInstances #-}
+--{-# LANGUAGE UndecidableInstances #-}
+--{-# LANGUAGE DeriveGeneric #-}
 
 
 
@@ -26,13 +29,9 @@ module Utils.ABT where
 
 import Utils.Vars
 
-import Control.Monad.State
-import Data.Bifunctor
-import Data.Bitraversable
-import qualified Data.Foldable as F
-import Data.Functor.Classes
+--import Control.Monad.State
 import Data.List (elemIndex)
-import GHC.Generics
+--import GHC.Generics
 
 
 
@@ -70,12 +69,9 @@ import GHC.Generics
 -- representation possible, without simultaneously forcing every kind of
 -- construct (lists, clauses, etc.) into the ABT type.
 
-data ABT f
-  = Var Variable
-  | In (f (Scope f))
-  deriving (Generic)
-
-deriving instance Show (f (Scope f)) => Show (ABT f)
+data ABT sig = Var Variable
+             | sig :$: [Scope sig]
+  deriving (Show)
 
 
 
@@ -94,7 +90,7 @@ data Variable
   = Free FreeVar
   | Bound String BoundVar
   | Meta MetaVar
-  deriving (Show,Generic)
+  deriving (Show)
 
 
 -- | The name of a variable.
@@ -125,19 +121,18 @@ instance Eq Variable where
 -- @ABT f@ for the body of the scope. a value @Scope ["x","y"] m@ corresponds
 -- to a PFPL scope of the form @x,y.m@
 
-data Scope f
+data Scope sig
   = Scope
       { names :: [String]
       , freeNames :: [FreeVar]
-      , body :: ABT f
+      , body :: ABT sig
       }
-  deriving (Generic)
-
-deriving instance Show (f (Scope f)) => Show (Scope f)
+  deriving (Show)
 
 
 
 
+{-
 
 
 -- * Translating ABTs between construction signatures
@@ -209,7 +204,7 @@ foldScope aVar aRec aSc (Scope ns _ b) =
 
 
 
-
+-}
 
 
 -- * Free variables in an ABT
@@ -219,28 +214,23 @@ foldScope aVar aRec aSc (Scope ns _ b) =
 -- | A term has some specified free variables. We can compute these whenever
 -- the constructions form a 'Foldable' instance.
 
-freeVars :: (Functor f, Foldable f) => ABT f -> [FreeVar]
-freeVars = fold fvAlgV fvAlgRec fvAlgSc
-  where
-    fvAlgV (Free n) = [n]
-    fvAlgV _        = []
-    
-    fvAlgRec :: Foldable f => f [FreeVar] -> [FreeVar]
-    fvAlgRec = foldMap id
-    
-    fvAlgSc :: Int -> [FreeVar] -> [FreeVar]
-    fvAlgSc _ ns = ns
+freeVars :: ABT sig -> [FreeVar]
+freeVars (Var (Free n)) = [n]
+freeVars (Var _) = []
+freeVars (_ :$: xs) = xs >>= freeVarsScope
 
+freeVarsScope :: Scope sig -> [FreeVar]
+freeVarsScope (Scope _ _ x) = freeVars x
 
 
 
 -- | 'freeVarNames' just gives back the free names for the free vars.
 
-freeVarNames :: (Functor f, Foldable f) => ABT f -> [String]
+freeVarNames :: ABT sig -> [String]
 freeVarNames = map (\(FreeVar n) -> n) . freeVars
 
 
-
+{-
 
 
 -- | The 'BinderNameSource' class captures the idea that some data constitutes
@@ -333,7 +323,7 @@ instance (Functor f, Foldable f, Traversable f)
 
 
 
-
+-}
 
 
 
@@ -374,11 +364,11 @@ instance (Functor f, Foldable f, Traversable f)
 -- were bound outside of any new binders that 'shift' passes under. This is
 -- what the variable @l@ represents in 'shift'.
 
-shift :: Functor f => Int -> Int -> ABT f -> ABT f
+shift :: Int -> Int -> ABT sig -> ABT sig
 shift l i (Var (Bound n (BoundVar v))) | v > l-1 =
   Var (Bound n (BoundVar (v+i)))
 shift _ _ (Var v) = Var v
-shift l i (In x) = In (fmap (shiftScope l i) x)
+shift l i (c :$: xs) = c :$: map (shiftScope l i) xs
 
 
 
@@ -386,7 +376,7 @@ shift l i (In x) = In (fmap (shiftScope l i) x)
 -- are brought into scope, so the number of variables bound by the scope is
 -- added to the current value of @l@ in the recursive call.
 
-shiftScope :: Functor f => Int -> Int -> Scope f -> Scope f
+shiftScope :: Int -> Int -> Scope sig -> Scope sig
 shiftScope l i (Scope ns fns x) = Scope ns fns (shift (l+length ns) i x)
 
 
@@ -417,11 +407,11 @@ shiftScope l i (Scope ns fns x) = Scope ns fns (shift (l+length ns) i x)
 -- @i@, which represents the number of variables bound by the now-removed
 -- binder.
 
-unshift :: Functor f => Int -> Int -> ABT f -> ABT f
+unshift :: Int -> Int -> ABT sig -> ABT sig
 unshift l i (Var (Bound n (BoundVar v))) | v > l-1 =
   Var (Bound n (BoundVar (v-i)))
 unshift _ _ (Var v) = Var v
-unshift l i (In x) = In (fmap (unshiftScope l i) x)
+unshift l i (c :$: xs) = c :$: map (unshiftScope l i) xs
 
 
 
@@ -429,7 +419,7 @@ unshift l i (In x) = In (fmap (unshiftScope l i) x)
 -- that are brought into scope, so the number of variables bound by the scope
 -- is added to the current value of @l@ in the recursive call.
 
-unshiftScope :: Functor f => Int -> Int -> Scope f -> Scope f
+unshiftScope :: Int -> Int -> Scope sig -> Scope sig
 unshiftScope l i (Scope ns fns x) = Scope ns fns (unshift (l+length ns) i x)
 
 
@@ -445,20 +435,20 @@ unshiftScope l i (Scope ns fns x) = Scope ns fns (unshift (l+length ns) i x)
 -- | We bind variables by replacing them with an appropriately named 'Bound'.
 -- The argument @l@ tracks how many binders we've recursed under.
 
-bind :: (Functor f, Foldable f) => Int -> [FreeVar] -> ABT f -> ABT f
+bind :: Int -> [FreeVar] -> ABT sig -> ABT sig
 bind _ [] x = x
 bind l ns (Var v@(Free n)) =
   case elemIndex n ns of
     Nothing -> Var v
     Just i -> Var (Bound (name v) (BoundVar (l + i)))
 bind _ _ (Var v) = Var v
-bind l ns (In x) = In (fmap (bindScope l ns) x)
+bind l ns (c :$: xs) = c :$: map (bindScope l ns) xs
 
 
 
 -- | We also can bind scopes. As before, @l@ tracks new variables.
 
-bindScope :: (Functor f, Foldable f) => Int -> [FreeVar] -> Scope f -> Scope f
+bindScope :: Int -> [FreeVar] -> Scope sig -> Scope sig
 bindScope _ [] sc = sc
 bindScope l ns (Scope ns' _ b) =
   Scope ns' fv b'
@@ -479,7 +469,7 @@ bindScope l ns (Scope ns' _ b) =
 -- | We unbind by doing the opposite of binding, replacing bound variables
 -- with free variables.
 
-unbind :: (Functor f, Foldable f) => Int -> [FreeVar] -> ABT f -> ABT f
+unbind :: Int -> [FreeVar] -> ABT sig -> ABT sig
 unbind _ [] x = x
 unbind l ns (Var (Bound n (BoundVar i))) =
   if i < l  -- i is a locally bound variable
@@ -488,14 +478,13 @@ unbind l ns (Var (Bound n (BoundVar i))) =
   then Var (Bound n (BoundVar i))
   else Var (Free (ns !! (i - l)))
 unbind _ _ (Var v) = Var v
-unbind l ns (In x) = In (fmap (unbindScope l ns) x)
+unbind l ns (c :$: xs) = c :$: map (unbindScope l ns) xs
 
 
 
 -- | We also can unbind scopes.
 
-unbindScope :: (Functor f, Foldable f)
-            => Int -> [FreeVar] -> Scope f -> Scope f
+unbindScope :: Int -> [FreeVar] -> Scope sig -> Scope sig
 unbindScope l ns (Scope ns' _ b) =
   Scope ns' fv b'
   where
@@ -516,7 +505,7 @@ unbindScope l ns (Scope ns' _ b) =
 -- binding of free variables. This also calculates the remaining free
 -- variables in the body of the scope and stores them.
 
-scope :: (Functor f, Foldable f) => [String] -> ABT f -> Scope f
+scope :: [String] -> ABT sig -> Scope sig
 scope ns b = Scope { names = ns
                    , freeNames = freeVars b'
                    , body = b'
@@ -529,7 +518,7 @@ scope ns b = Scope { names = ns
 -- the scope body, we need to rename them first, before unbinding. 'descope'
 -- also returns the fresh names.
 
-descope :: (Functor f, Foldable f) => Scope f -> ([String], ABT f)
+descope :: Scope sig -> ([String], ABT sig)
 descope (Scope ns fns b) = (freshNs, unbind 0 (map FreeVar freshNs) b)
   where freshNs = freshen [ n | FreeVar n <- fns ] ns
 
@@ -547,20 +536,19 @@ descope (Scope ns fns b) = (freshNs, unbind 0 (map FreeVar freshNs) b)
 -- We do however need to track how many binders we've passed under in order to
 -- shift free variables.
 
-subst :: (Functor f, Foldable f) => Int -> [(FreeVar, ABT f)] -> ABT f -> ABT f
+subst :: Int -> [(FreeVar, ABT sig)] -> ABT sig -> ABT sig
 subst l subs (Var (Free n)) =
   case lookup n subs of
     Nothing -> Var (Free n)
     Just x -> shift 0 l x
 subst _ _ (Var v) = Var v
-subst l subs (In x) = In (fmap (substScope l subs) x)
+subst l subs (c :$: xs) = c :$: map (substScope l subs) xs
 
 
 
 -- | Substitution for scopes is similarly simple.
 
-substScope :: (Functor f, Foldable f)
-           => Int -> [(FreeVar, ABT f)] -> Scope f -> Scope f
+substScope :: Int -> [(FreeVar, ABT sig)] -> Scope sig -> Scope sig
 substScope l subs (Scope ns _ b) =
   Scope ns (freeVars b') b'
   where b' = subst (l + length ns) subs b
@@ -581,7 +569,7 @@ substScope l subs (Scope ns _ b) =
 -- because some of the terms inside the result might be variables bound by a
 -- scope higher than the one being instantiated.
 
-instantiate :: (Functor f, Foldable f) => Scope f -> [ABT f] -> ABT f
+instantiate :: Scope sig -> [ABT sig] -> ABT sig
 instantiate (Scope ns fns b) xs
   | length ns /= length xs =
       error "Cannot instantiate along differing numbers of arguments."
@@ -595,7 +583,7 @@ instantiate (Scope ns fns b) xs
 
 -- | A convenience function for instantiating at exactly no arguments.
 
-instantiate0 :: (Functor f, Foldable f) => Scope f -> ABT f
+instantiate0 :: Scope sig -> ABT sig
 instantiate0 a = instantiate a []
 
 
@@ -610,15 +598,16 @@ instantiate0 a = instantiate a []
 
 -- | We can apply functions under a binder without disturbing the binding.
 
-under :: (ABT f -> ABT f) -> Scope f -> Scope f
+under :: (ABT sig -> ABT sig) -> Scope sig -> Scope sig
 under f (Scope ns fns b) = Scope ns fns (f b)
 
 
+{-
 -- | A functor-lifted version of 'under'
 
 underF :: Functor m => (ABT f -> m (ABT f)) -> Scope f -> m (Scope f)
 underF f (Scope ns fns b) = Scope ns fns <$> f b
-
+-}
 
 -- | A convenience function that makes it easier to do iterated binding.
 
@@ -633,17 +622,15 @@ helperFold c xs n = foldr c n xs
 -- should basically turn @Free n@ into @In (Defined n)@ or some equivalent
 -- term that represents the name of a defined term.
 
-freeToDefined :: (Functor f, Foldable f)
-              => (String -> ABT f) -> ABT f -> ABT f
+freeToDefined :: (String -> ABT sig) -> ABT sig -> ABT sig
 freeToDefined d (Var (Free (FreeVar n))) = d n
 freeToDefined _ (Var v) = Var v
-freeToDefined d (In x) = In (fmap (freeToDefinedScope d) x)
+freeToDefined d (c :$: xs) = c :$: fmap (freeToDefinedScope d) xs
 
 
 -- | Similarly, we can swap out the free variables in scopes.
 
-freeToDefinedScope :: (Functor f, Foldable f)
-                   => (String -> ABT f) -> Scope f -> Scope f
+freeToDefinedScope :: (String -> ABT sig) -> Scope sig -> Scope sig
 freeToDefinedScope d (Scope ns _ b) =
   Scope ns [] (freeToDefined d b)
 
@@ -661,7 +648,7 @@ freeToDefinedScope d (Scope ns _ b) =
 -- Since metavariables are in some sense always free, their substitution is
 -- much simpler.
 
-substMetas :: (Functor f, Foldable f) => [(MetaVar, ABT f)] -> ABT f -> ABT f
+substMetas :: [(MetaVar, ABT sig)] -> ABT sig -> ABT sig
 substMetas [] x = x
 substMetas subs (Var (Meta m)) =
   case lookup m subs of
@@ -669,46 +656,36 @@ substMetas subs (Var (Meta m)) =
     Just x -> x
 substMetas _ (Var v) =
   Var v
-substMetas subs (In x) =
-  In (fmap (substMetasScope subs) x)
+substMetas subs (c :$: xs) =
+  c :$: map (substMetasScope subs) xs
 
 
 -- | We need to also be able to substitute metavariables in scopes.
 
-substMetasScope :: (Functor f, Foldable f)
-                => [(MetaVar, ABT f)] -> Scope f -> Scope f
+substMetasScope :: [(MetaVar, ABT sig)] -> Scope sig -> Scope sig
 substMetasScope subs sc = substMetas subs `under` sc
 
 
 -- | We can perform occurs checks on ABTs by using the generic ABT fold.
 
-occurs :: (Functor f, Foldable f) => MetaVar -> ABT f -> Bool
-occurs m x = fold ocAlgV ocAlgRec ocAlgSc x
-  where
-    ocAlgV :: Variable -> Bool
-    ocAlgV (Meta m') = m == m'
-    ocAlgV _ = False
-    
-    ocAlgRec :: Foldable f => f Bool -> Bool
-    ocAlgRec = F.foldl' (||) False
-    
-    ocAlgSc :: Int -> Bool -> Bool
-    ocAlgSc _ b = b
+occurs :: MetaVar -> ABT sig -> Bool
+occurs m (Var (Meta m')) = m == m'
+occurs _ (Var _) = False
+occurs m (_ :$: xs) = any (occursScope m) xs
+
+occursScope :: MetaVar -> Scope sig -> Bool
+occursScope m (Scope _ _ x) = occurs m x
 
 
 -- | We can get a list of the metavars in an ABT.
 
-metaVars :: (Functor f, Foldable f) => ABT f -> [MetaVar]
-metaVars = fold mvAlgV mvAlgRec mvAlgSc
-  where
-    mvAlgV (Meta n) = [n]
-    mvAlgV _        = []
-    
-    mvAlgRec :: Foldable f => f [MetaVar] -> [MetaVar]
-    mvAlgRec = foldMap id
-    
-    mvAlgSc :: Int -> [MetaVar] -> [MetaVar]
-    mvAlgSc _ ns = ns
+metaVars :: ABT sig -> [MetaVar]
+metaVars (Var (Meta m)) = [m]
+metaVars (Var _) = []
+metaVars (_ :$: xs) = xs >>= metaVarsScope
+
+metaVarsScope :: Scope sig -> [MetaVar]
+metaVarsScope (Scope _ _ x) = metaVars x
 
 
 
@@ -718,20 +695,20 @@ metaVars = fold mvAlgV mvAlgRec mvAlgSc
 -- * Equality
 
 
-instance Eq1 f => Eq (ABT f) where
+instance Eq sig => Eq (ABT sig) where
   Var x == Var y = x == y
-  In x == In y = eq1 x y
+  c :$: xs == c' :$: xs' = c == c' && xs == xs'
   _ == _ = False
 
 
-instance Eq1 f => Eq (Scope f) where
+instance Eq sig => Eq (Scope sig) where
   Scope ns _ x == Scope ns' _ y =
     length ns == length ns' && x == y
 
 
 
 
-
+{-
 
 
 -- * Zipping
@@ -783,3 +760,5 @@ bisequenceABTF (In x) = In <$> bitraverse id bisequenceScopeF x
 bisequenceScopeF :: (Applicative f, Bitraversable g)
                  => Scope (g (f a)) -> f (Scope (g a))
 bisequenceScopeF (Scope ns fns x) = Scope ns fns <$> bisequenceABTF x
+
+-}

@@ -127,10 +127,10 @@ freshRelTo ns l = do ctx <- getElab l
 
 -- | We can open a scope with fresh names relative to any context-like list.
 
-open :: (MonadElab s m, Functor f, Foldable f)
+open :: MonadElab s m
      => Lens' s [(FreeVar,a)]
-     -> Scope f
-     -> m ([FreeVar], [String], ABT f)
+     -> Scope sig
+     -> m ([FreeVar], [String], ABT sig)
 open l sc =
   do ns <- freshRelTo (names sc) l
      let newVars = [ Var (Free n) | n <- ns ]
@@ -142,8 +142,7 @@ open l sc =
 
 
 
-openScope :: (Functor f, Foldable f)
-          => [(FreeVar,a)] -> Scope f -> ([FreeVar], [String], ABT f)
+openScope :: [(FreeVar,a)] -> Scope sig -> ([FreeVar], [String], ABT sig)
 openScope ctx sc =
   let ns = names sc
       oldNs = [ n' | (FreeVar n',_) <- ctx ]

@@ -219,7 +219,7 @@ solve eqs0 = go eqs0 []
       | otherwise = throwError $ "Cannot unify variables " ++ pretty v1
                               ++ " and " ++ pretty v2
     
-    go (Equation (In l) (In r):eqs) subs =
+    go (Equation (c :$: xs) (c' :$: xs'):eqs) subs =
       do newEqs <- equate l r
          go (newEqs ++ eqs) subs
     

@@ -63,7 +63,7 @@ instance Decomposable () ElabError Judgment where
 
 
 
-openScope :: HypotheticalContext -> Scope TermF -> ([FreeVar], [String], Term)
+openScope :: HypotheticalContext -> Scope PlutusSig -> ([FreeVar], [String], Term)
 openScope ctx sc =
   let ns = names sc
       oldNs = map variableName ctx
@@ -265,7 +265,7 @@ typeConstructorInContext (Context { currentModule = currl
 termConstructorInContext
   :: Context
   -> QualifiedConstructor
-  -> Decomposer ([Scope TermF], QualifiedConstructor)
+  -> Decomposer ([Scope PlutusSig], QualifiedConstructor)
 termConstructorInContext (Context { currentModule = currl
                                   , nominalContext = (ls,ds)
                                   })
@@ -305,9 +305,9 @@ termConstructorInContext (Context { currentModule = currl
 
 termNameInContext
   :: Context -> QualifiedName -> Decomposer Term
-termNameInContext (Context { currentModule = currl
-                           , nominalContext = (ls,ds)
-                           })
+termNameInContext ctx@(Context { currentModule = currl
+                               , nominalContext = (ls,ds)
+                               })
                   n@(QualifiedName l nm) =
   if currl == l
     then
@@ -366,7 +366,7 @@ termVariableInHypotheticalContext (_ : hypctx) y =
 
 noRepeatedConstructors :: [Clause] -> Decomposer ()
 noRepeatedConstructors cls =
-  do let cs = [ c | Clause c _ <- cls ]
+  do let cs = [ c | Clause c :$: [_] <- cls ]
          uniqueCs = nub cs
          repeats = nub (cs \\ uniqueCs)
      unless (null repeats)
@@ -391,7 +391,7 @@ coversAllConstructors ctx (QualifiedConstructor l nm) cls =
   do let cs = [ QualifiedConstructor l connm
               | connm <- extractCons ctx
               ]
-         missing = cs \\ [ c | Clause c _ <- cls ]
+         missing = cs \\ [ c | Clause c :$: [_] <- cls ]
      unless (null missing)
        (failure
          (ElabError
@@ -440,23 +440,28 @@ signatureOfBuiltin n =
       , ("remainderInteger", ([integerTH, integerTH], integerTH))
       , ("lessThanInteger"
         ,  ( [integerTH, integerTH]
-           , conTH (QualifiedConstructor "Prelude" "Bool") []
+           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+           , scottBool
            ))
       , ("lessThanEqualsInteger"
         , ( [integerTH, integerTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("greaterThanInteger"
         , ( [integerTH, integerTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("greaterThanEqualsInteger"
         , ( [integerTH, integerTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("equalsInteger"
         ,  ( [integerTH, integerTH]
-           , conTH (QualifiedConstructor "Prelude" "Bool") []
+           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+           , scottBool
            ))
       , ("integerToFloat", ([integerTH], floatTH))
       , ("integerToByteString", ([integerTH], byteStringTH))
@@ -468,23 +473,28 @@ signatureOfBuiltin n =
       , ("divideFloat", ([floatTH, floatTH], floatTH))
       , ("lessThanFloat"
         ,  ( [floatTH, floatTH]
-           , conTH (QualifiedConstructor "Prelude" "Bool") []
+           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+           , scottBool
            ))
       , ("lessThanEqualsFloat"
         , ( [floatTH, floatTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("greaterThanFloat"
         , ( [floatTH, floatTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("greaterThanEqualsFloat"
         , ( [floatTH, floatTH]
-          , conTH (QualifiedConstructor "Prelude" "Bool") []
+          -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+          , scottBool
           ))
       , ("equalsFloat"
         ,  ( [floatTH, floatTH]
-           , conTH (QualifiedConstructor "Prelude" "Bool") []
+           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+           , scottBool
            ))
       , ("ceil", ([floatTH], integerTH))
       , ("floor", ([floatTH], integerTH))
@@ -498,9 +508,20 @@ signatureOfBuiltin n =
       , ("sha3_256", ([byteStringTH], byteStringTH))
       , ("equalsByteString"
         ,  ( [byteStringTH, byteStringTH]
-           , conTH (QualifiedConstructor "Prelude" "Bool") []
+           -- , conTH (QualifiedConstructor "Prelude" "Bool") []
+           , scottBool
            ))
       ]
+    
+    scottUnit :: Type
+    scottUnit = forallTH "a" TypeK
+                  (funTH (Var (Free (FreeVar "a")))
+                         (Var (Free (FreeVar "a"))))
+    scottBool :: Type
+    scottBool = forallTH "r" TypeK
+                  (funTH (funTH scottUnit (Var (Free (FreeVar "r"))))
+                    (funTH (funTH scottUnit (Var (Free (FreeVar "r"))))
+                           (Var (Free (FreeVar "r")))))
 
 
 
@@ -510,7 +531,7 @@ synthCompBuiltin :: String -> Decomposer Term
 synthCompBuiltin "txhash" = return byteStringTH
 synthCompBuiltin "blocknum" = return integerTH
 synthCompBuiltin "blocktime" =
-  return (conTH (QualifiedConstructor "Prelude" "DateTime") [])
+  return (conTH (QualifiedConstructor "(con" "DateTime") [])
 synthCompBuiltin n =
   failure (ElabError ("Unknown computation builtin: " ++ n))
 
@@ -611,16 +632,15 @@ declJ l ls' nomctx@(_,ds) (TypeDeclaration tnm u) =
      goal (IsTypeValueJ u)
      _ <- goal (IsTypeJ (Context l ls' nomctx []) u)
      return ()
-declJ l ls' nomctx@(_,ds) (TermDeclaration nm tv) =
+declJ l ls' nomctx@(_,ds) (TermDeclaration nm t) =
   do freshTermName ds nm
-     goal (IsTypeValueJ tv)
-     k <- goal (IsTypeJ (Context l ls' nomctx []) tv)
+     k <- goal (IsTypeJ (Context l ls' nomctx []) t)
      case k of
        TypeK -> return ()
        _ -> failure
               (ElabError
                 ("The term name " ++ nm ++ " has been declared with the type "
-                  ++ pretty tv ++ " which should have kind "
+                  ++ pretty t ++ " which should have kind "
                   ++ prettyKind TypeK ++ " but which actually has kind "
                   ++ prettyKind k))
 declJ l ls' nomctx@(_,ds) (TermDefinition nm v) =
@@ -675,9 +695,9 @@ isTypeJ _ (Var (Bound _ _)) =
   failure
     (ElabError
       ("Cannot synthesize the kind of a bound type variable."))
-isTypeJ ctx (In (DecnameT n)) =
+isTypeJ ctx (DecnameT n :$: []) =
   typeNameInContext ctx n
-isTypeJ ctx (In (FunT a b)) =
+isTypeJ ctx (FunT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      unless (k == TypeK)
        (failure
@@ -693,7 +713,7 @@ isTypeJ ctx (In (FunT a b)) =
              ++ " should be (type) but is actually "
              ++ prettyKind k')))
      return TypeK
-isTypeJ ctx (In (ConT c as)) =
+isTypeJ ctx (ConT c :$: as) =
   do ks <- typeConstructorInContext ctx c
      unless (length as == length ks)
        (failure
@@ -718,7 +738,7 @@ isTypeJ ctx (In (ConT c as)) =
        as
        ks
      return TypeK
-isTypeJ ctx (In (CompT a)) =
+isTypeJ ctx (CompT :$: [a]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      unless (k == TypeK)
        (failure
@@ -727,7 +747,7 @@ isTypeJ ctx (In (CompT a)) =
              ++ " should be (type) but is actually "
              ++ prettyKind k)))
      return TypeK
-isTypeJ ctx (In (ForallT k sc)) =
+isTypeJ ctx (ForallT k :$: [sc]) =
   do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
@@ -740,20 +760,20 @@ isTypeJ ctx (In (ForallT k sc)) =
              ++ " should be (type) but is actually "
              ++ prettyKind k')))
      return TypeK
-isTypeJ _ (In IntegerT) =
+isTypeJ _ (IntegerT :$: []) =
   return TypeK
-isTypeJ _ (In FloatT) =
+isTypeJ _ (FloatT :$: []) =
   return TypeK
-isTypeJ _ (In ByteStringT) =
+isTypeJ _ (ByteStringT :$: []) =
   return TypeK
-isTypeJ ctx (In (LamT k sc)) =
+isTypeJ ctx (LamT k :$: [sc]) =
   do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
                     }
      k' <- goal (IsTypeJ ctx' a)
      return (FunK k k')
-isTypeJ ctx (In (AppT a b)) =
+isTypeJ ctx (AppT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      case k of
        FunK k' k'' ->
@@ -786,25 +806,25 @@ isTypeJ _ m =
 isTypeValueJ :: Term -> Decomposer ()
 isTypeValueJ (Var _) =
   return ()
-isTypeValueJ (In (DecnameT _)) =
+isTypeValueJ (DecnameT _ :$: []) =
   return ()
-isTypeValueJ (In (FunT a b)) =
+isTypeValueJ (FunT :$: [a,b]) =
   do goal (IsTypeValueJ (instantiate0 a))
      goal (IsTypeValueJ (instantiate0 b))
-isTypeValueJ (In (ConT _ as)) =
+isTypeValueJ (ConT _ :$: as) =
   forM_ as $ \a ->
     goal (IsTypeValueJ (instantiate0 a))
-isTypeValueJ (In (CompT a)) =
+isTypeValueJ (CompT :$: [a]) =
   goal (IsTypeValueJ (instantiate0 a))
-isTypeValueJ (In (LamT _ _)) =
+isTypeValueJ (LamT _ :$: [_]) =
   return ()
-isTypeValueJ (In (ForallT _ _)) =
+isTypeValueJ (ForallT _ :$: [_]) =
   return ()
-isTypeValueJ (In IntegerT) =
+isTypeValueJ (IntegerT :$: []) =
   return ()
-isTypeValueJ (In FloatT) =
+isTypeValueJ (FloatT :$: []) =
   return ()
-isTypeValueJ (In ByteStringT) =
+isTypeValueJ (ByteStringT :$: []) =
   return ()
 isTypeValueJ a =
   failure
@@ -817,20 +837,20 @@ isTypeValueJ a =
 
 
 isTermValueJ :: Term -> Decomposer ()
-isTermValueJ (In (Abst _)) =
+isTermValueJ (Abst :$: [_]) =
   return ()
-isTermValueJ (In (Lam _)) =
+isTermValueJ (Lam :$: [_]) =
   return ()
-isTermValueJ (In (Con _ ms)) =
+isTermValueJ (Con _ :$: ms) =
   forM_ ms $ \m ->
     goal (IsTermValueJ (instantiate0 m))
-isTermValueJ (In (Success m)) =
+isTermValueJ (Success :$: [m]) =
   goal (IsTermValueJ (instantiate0 m))
-isTermValueJ (In Failure) =
+isTermValueJ (Failure :$: []) =
   return ()
-isTermValueJ (In (CompBuiltin _)) =
+isTermValueJ (CompBuiltin _ :$: []) =
   return ()
-isTermValueJ (In (Bind m _)) =
+isTermValueJ (Bind :$: [m,_]) =
   goal (IsTermValueJ (instantiate0 m))
 isTermValueJ m =
   failure
@@ -843,20 +863,22 @@ isTermValueJ m =
 
 
 checkJ :: Context -> Term -> Term -> Decomposer ()
-checkJ ctx (In (ForallT k sc)) (In (Abst sc')) =
+checkJ ctx (ForallT k :$: [sc]) (Abst :$: [sc']) =
   do let ([x], [n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
                     }
          m = instantiate sc' [Var (Free x)]
-     goal (CheckJ ctx' a m)
-checkJ ctx (In (FunT a b)) (In (Lam sc')) =
+         tenv = nominalContextToTypeEnv ctx
+         normal_a = evaluateType tenv a
+     goal (CheckJ ctx' normal_a m)
+checkJ ctx (FunT :$: [a,b]) (Lam :$: [sc']) =
   do let (_, [n], m) = openScope (hypotheticalContext ctx) sc'
          ctx' = ctx { hypotheticalContext =
                         HasType n (instantiate0 a) : hypotheticalContext ctx
                     }
      goal (CheckJ ctx' (instantiate0 b) m)
-checkJ ctx (In (ConT c as)) (In (Con c' ms)) =
+checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
   do (bscs, tc) <- termConstructorInContext ctx c'
      unless (tc == c)
        (failure
@@ -880,11 +902,12 @@ checkJ ctx (In (ConT c as)) (In (Con c' ms)) =
          normal_bs = map (evaluateType tenv) bs
      forM_ (zip normal_bs ms) $ \(b,m) ->
        goal (CheckJ ctx b (instantiate0 m))
-checkJ ctx t (In (Case m cls)) =
+checkJ ctx t (Case :$: (m:clsscs)) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
-       In (ConT tc bs) ->
-         do noRepeatedConstructors cls
+       ConT tc :$: bs ->
+         do let cls = map instantiate0 clsscs
+            noRepeatedConstructors cls
             coversAllConstructors ctx tc cls
             let tenv = nominalContextToTypeEnv ctx
                 normal_bs = map (evaluateType tenv . instantiate0) bs 
@@ -895,9 +918,9 @@ checkJ ctx t (In (Case m cls)) =
            (ElabError
              ("Cannot case on non-constructed data `"
                ++ pretty (instantiate0 m) ++ "a"))
-checkJ ctx (In (CompT a)) (In (Success m)) =
+checkJ ctx (CompT :$: [a]) (Success :$: [m]) =
   goal (CheckJ ctx (instantiate0 a) (instantiate0 m))
-checkJ _ (In (CompT _)) (In Failure) =
+checkJ _ (CompT :$: [_]) (Failure :$: []) =
   return ()
 checkJ ctx a m =
   case (isType a, isTerm m) of
@@ -924,22 +947,28 @@ checkJ ctx a m =
 
 synthJ :: Context -> Term -> Decomposer Term
 synthJ ctx (Var (Free (FreeVar x))) =
-  termVariableInHypotheticalContext (hypotheticalContext ctx) x
+  do t <- termVariableInHypotheticalContext (hypotheticalContext ctx) x
+     let tenv = nominalContextToTypeEnv ctx
+         normal_t = evaluateType tenv t
+     return normal_t
 synthJ _ (Var (Bound _ _)) =
   failure
     (ElabError
       ("Cannot synthesize the type of a bound term variable."))
-synthJ ctx (In (Decname n)) =
-  termNameInContext ctx n
-synthJ ctx (In (Isa a m)) =
+synthJ ctx (Decname n :$: []) =
+  do t <- termNameInContext ctx n
+     let tenv = nominalContextToTypeEnv ctx
+         normal_t = evaluateType tenv t
+     return normal_t
+synthJ ctx (Isa :$: [a,m]) =
   do let tenv = nominalContextToTypeEnv ctx
          normal_a = evaluateType tenv (instantiate0 a)
      goal (CheckJ ctx normal_a (instantiate0 m))
      return normal_a
-synthJ ctx (In (Inst m a)) =
+synthJ ctx (Inst :$: [m,a]) =
   do b <- goal (SynthJ ctx (instantiate0 m))
      case b of
-       In (ForallT k sc) ->
+       ForallT k :$: [sc] ->
          do k' <- goal (IsTypeJ ctx (instantiate0 a))
             unless (k == k')
               (failure
@@ -954,10 +983,10 @@ synthJ ctx (In (Inst m a)) =
               (ElabError
                 ("Cannot instantiate the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-quantified type `" ++ pretty b ++ "`"))
-synthJ ctx (In (App m n)) =
+synthJ ctx (App :$: [m,n]) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
-       In (FunT b c) ->
+       FunT :$: [b,c] ->
          do let tenv = nominalContextToTypeEnv ctx
                 normal_b = evaluateType tenv (instantiate0 b)
             goal (CheckJ ctx normal_b (instantiate0 n))
@@ -966,13 +995,13 @@ synthJ ctx (In (App m n)) =
               (ElabError
                 ("Cannot apply the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-function type `" ++ pretty a ++ "`"))
-synthJ _ (In (CompBuiltin n)) =
+synthJ _ (CompBuiltin n :$: []) =
   do t <- synthCompBuiltin n
      return (compTH t)
-synthJ ctx m0@(In (Bind m sc)) =
+synthJ ctx m0@(Bind :$: [m,sc]) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
-       In (CompT b) ->
+       CompT :$: [b] ->
          do let (_, [n], m') = openScope (hypotheticalContext ctx) sc
                 ctx' = ctx { hypotheticalContext =
                                HasType n (instantiate0 b)
@@ -980,7 +1009,7 @@ synthJ ctx m0@(In (Bind m sc)) =
                            }
             c <- goal (SynthJ ctx' m')
             case c of
-              In (CompT _) ->
+              CompT :$: [_] ->
                 return c
               _ -> failure
                      (ElabError
@@ -991,13 +1020,13 @@ synthJ ctx m0@(In (Bind m sc)) =
               (ElabError
                 ("Cannot bind the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-computation type `" ++ pretty a ++ "`"))
-synthJ _ (In (PrimInteger _)) =
+synthJ _ (PrimInteger _ :$: []) =
   return integerTH
-synthJ _ (In (PrimFloat _)) =
+synthJ _ (PrimFloat _ :$: []) =
   return floatTH
-synthJ _ (In (PrimByteString _)) =
+synthJ _ (PrimByteString _ :$: []) =
   return byteStringTH
-synthJ ctx (In (Builtin n ms)) =
+synthJ ctx (Builtin n :$: ms) =
   do (as,b) <- signatureOfBuiltin n
      unless (length as == length ms)
        (failure
@@ -1026,7 +1055,7 @@ clauseJ
   -> Term
   -> Clause
   -> Decomposer ()
-clauseJ ctx tc as t (Clause c sc) =
+clauseJ ctx tc as t (Clause c :$: [sc]) =
   do (bscs, tc') <- termConstructorInContext ctx c
      unless (tc == tc')
        (failure
@@ -1053,6 +1082,9 @@ clauseJ ctx tc as t (Clause c sc) =
                           ++ hypotheticalContext ctx
                     }
      goal (CheckJ ctx' t m)
+clauseJ _ _ _ _ _ =
+  error "Tried to check that a non-clause is a well-formed clause.\
+        \ This should be impossible."
 
 
 
@@ -1069,200 +1101,30 @@ equalJ _ (Var x) (Var y) =
                ++ "` and `"
                ++ name y
                ++ "`"))
-equalJ _ (In (Decname n)) (In (Decname n')) =
-  if n == n'
-    then return ()
-    else failure
-           (ElabError
-             ("Qualified names not equal: `"
-               ++ prettyQualifiedName n
-               ++ "` and `"
-               ++ prettyQualifiedName n'
-               ++ "`"))
-equalJ ctx (In (Isa a m)) (In (Isa a' m')) =
-  do goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-     goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-equalJ ctx (In (Abst sc)) (In (Abst sc')) =
-  do let ([x], [n], a) = openScope (hypotheticalContext ctx) sc
-         a' = instantiate sc' [Var (Free x)]
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n undefined : hypotheticalContext ctx
-                    }
-     goal (EqualJ ctx' a a')
-equalJ ctx (In (Inst m a)) (In (Inst m' a')) =
-  do goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-     goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-equalJ ctx (In (Lam sc)) (In (Lam sc')) =
-  do let ([x], [n], m) = openScope (hypotheticalContext ctx) sc
-         m' = instantiate sc' [Var (Free x)]
-         ctx' = ctx { hypotheticalContext =
-                        HasType n undefined : hypotheticalContext ctx
-                    }
-     goal (EqualJ ctx' m m')
-equalJ ctx (In (App m n)) (In (App m' n')) =
-  do goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-     goal (EqualJ ctx (instantiate0 n) (instantiate0 n'))
-equalJ ctx (In (Con c ms)) (In (Con c' ms')) =
-  do unless (c == c')
-       (failure
+equalJ ctx@(Context l ls' nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
+  if c /= c'
+  then failure
          (ElabError
-           ("Qualified constructors not equal: `"
-             ++ prettyQualifiedConstructor c
+           ("Terms not equal: `"
+             ++ pretty m0
              ++ "` and `"
-             ++ prettyQualifiedConstructor c'
-             ++ "`")))
-     forM_ (zip ms ms') $ \(m,m') ->
-       goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-equalJ ctx (In (Case m cls)) (In (Case m' cls')) =
-  do goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-     unless (length cls == length cls')
-       (failure
-         (ElabError
-           ("Different number of clauses: "
-             ++ show (length cls)
-             ++ " and "
-             ++ show (length cls'))))
-     forM_ (zip cls cls') $ \(Clause c sc, Clause c' sc') ->
-       do unless (c == c')
-            (failure
-              (ElabError
-                ("Qualified constructors not equal: `"
-                  ++ prettyQualifiedConstructor c
-                  ++ "` and `"
-                  ++ prettyQualifiedConstructor c'
-                  ++ "`")))
-          let (xs, ns, m'') = openScope (hypotheticalContext ctx) sc
-              m''' = instantiate sc' (map (Var . Free) xs)
-              ctx' = ctx { hypotheticalContext =
-                             [ HasType n undefined | n <- ns ]
-                               ++ hypotheticalContext ctx
-                         }
-          goal (EqualJ ctx' m'' m''')
-equalJ ctx (In (Success m)) (In (Success m')) =
-  goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-equalJ _ (In Failure) (In Failure) =
-  return ()
-equalJ _ (In (CompBuiltin n)) (In (CompBuiltin n')) =
-  if n == n'
-     then return ()
-     else failure
-            (ElabError
-              ("Computation builtin names not equal:" ++ n ++ " and " ++ n'))
-equalJ ctx (In (Bind m sc)) (In (Bind m' sc')) =
-  do goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-     let ([x],[n],m'') = openScope (hypotheticalContext ctx) sc
-         m''' = instantiate sc' [Var (Free x)]
-         ctx' = ctx { hypotheticalContext =
-                        HasType n undefined : hypotheticalContext ctx
-                    }
-     goal (EqualJ ctx' m'' m''')
-equalJ _ (In (PrimInteger n)) (In (PrimInteger n')) =
-  unless (n == n')
-    (failure
-      (ElabError
-        ("Integers not equal: `"
-          ++ show n
-          ++ "` and `"
-          ++ show n'
-          ++ "`")))
-equalJ _ (In (PrimFloat f)) (In (PrimFloat f')) =
-  unless (f == f')
-    (failure
-      (ElabError
-        ("Floats not equal: `"
-          ++ show f
-          ++ "` and `"
-          ++ show f'
-          ++ "`")))
-equalJ _ (In (PrimByteString bs)) (In (PrimByteString bs')) =
-  unless (bs == bs')
-    (failure
-      (ElabError
-        ("Bytestrings not equal: `"
-          ++ show bs
-          ++ "` and `"
-          ++ show bs'
-          ++ "`")))
-equalJ ctx (In (Builtin n ms)) (In (Builtin n' ms')) =
-  do unless (n == n')
-       (failure
-         (ElabError
-           ("Builtins not equal: `"
-             ++ show n
-             ++ "` and `"
-             ++ show n'
-             ++ "`")))
-     forM_ (zip ms ms') $ \(m,m') ->
-       goal (EqualJ ctx (instantiate0 m) (instantiate0 m'))
-equalJ _ (In (DecnameT n)) (In (DecnameT n')) =
-  if n == n'
-    then return ()
-    else failure
-           (ElabError
-             ("Qualified names not equal: `"
-               ++ prettyQualifiedName n
-               ++ "` and `"
-               ++ prettyQualifiedName n'
-               ++ "`"))
-equalJ ctx (In (FunT a b)) (In (FunT a' b')) =
-  do goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-     goal (EqualJ ctx (instantiate0 b) (instantiate0 b'))
-equalJ ctx (In (ConT c as)) (In (ConT c' as')) =
-  do unless (c == c')
-       (failure
-         (ElabError
-           ("Qualified constructors not equal: `"
-             ++ prettyQualifiedConstructor c
-             ++ "` and `"
-             ++ prettyQualifiedConstructor c'
-             ++ "`")))
-     forM_ (zip as as') $ \(a,a') ->
-       goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-equalJ ctx (In (CompT a)) (In (CompT a')) =
-  goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-equalJ ctx (In (ForallT k sc)) (In (ForallT k' sc')) =
-  do unless (k == k')
-       (failure
-         (ElabError
-           ("Kinds not equal: `"
-             ++ prettyKind k
-             ++ "` and `"
-             ++ prettyKind k'
-             ++ "`")))
-     let ([x],[n],a) = openScope (hypotheticalContext ctx) sc
-         a' = instantiate sc' [Var (Free x)]
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n undefined : hypotheticalContext ctx
-                    }
-     goal (EqualJ ctx' a a')
-equalJ _ (In IntegerT) (In IntegerT) =
-  return ()
-equalJ _ (In FloatT) (In FloatT) =
-  return ()
-equalJ _ (In ByteStringT) (In ByteStringT) =
-  return ()
-equalJ ctx (In (LamT k sc)) (In (LamT k' sc')) =
-  do unless (k == k')
-       (failure
-         (ElabError
-           ("Kinds not equal: `"
-             ++ prettyKind k
-             ++ "` and `"
-             ++ prettyKind k'
-             ++ "`")))
-     let ([x],[n],a) = openScope (hypotheticalContext ctx) sc
-         a' = instantiate sc' [Var (Free x)]
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n undefined : hypotheticalContext ctx
-                    }
-     goal (EqualJ ctx' a a')
-equalJ ctx (In (AppT a b)) (In (AppT a' b')) =
-  do goal (EqualJ ctx (instantiate0 a) (instantiate0 a'))
-     goal (EqualJ ctx (instantiate0 b) (instantiate0 b'))
+             ++ pretty m0'
+             ++ "`"))
+  else forM_ (zip scs scs') $ \(sc,sc') ->
+         do let (xs, ns, m) = openScope (hypotheticalContext ctx) sc
+                m' = instantiate sc' (map (Var . Free) xs)
+                tenv = nominalContextToTypeEnv (Context l ls' nomctx [])
+                normal_m = evaluateType tenv m
+                normal_m' = evaluateType tenv m'
+                ctx' = ctx { hypotheticalContext =
+                               [ HasType n undefined | n <- ns ]
+                                 ++ hypotheticalContext ctx
+                           }
+            goal (EqualJ ctx' normal_m normal_m')
 equalJ _ m m' =
   failure
     (ElabError
-      ("Cannot equate `" ++ pretty m ++ "` and `" ++ pretty m' ++ "`"))
+      ("Terms not equal: `" ++ pretty m ++ "` and `" ++ pretty m' ++ "`"))
 
 
 

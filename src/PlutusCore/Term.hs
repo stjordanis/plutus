@@ -54,60 +54,71 @@ prettyKind (FunK k k') =
 -- expressions @success(e)@, failure expressions @failure@, computation
 -- binds @bind(e1;x.e2)@, and finally, built-ins @builtin[n](e*)@.
 
-data TermF r
+data PlutusSig
   = 
     
     -- Terms
     
     Decname QualifiedName
-  | Isa r r
-  | Abst r
-  | Inst r r
-  | Lam r
-  | App r r
-  | Con QualifiedConstructor [r]
-  | Case r [ClauseF r]
-  | Success r
+  | Isa
+  | Abst
+  | Inst
+  | Lam
+  | App
+  | Con QualifiedConstructor
+  | Case
+  | Success
   | Failure
   | CompBuiltin String
-  | Bind r r
+  | Bind
   | PrimInteger Integer
   | PrimFloat Float
   | PrimByteString BS.ByteString
-  | Builtin String [r]
+  | Builtin String
   
   
     -- Types
   
   | DecnameT QualifiedName
-  | FunT r r
-  | ConT QualifiedConstructor [r]
-  | CompT r
-  | ForallT Kind r
+  | FunT
+  | ConT QualifiedConstructor
+  | CompT
+  | ForallT Kind
   | IntegerT
   | FloatT
   | ByteStringT
-  | LamT Kind r
-  | AppT r r
+  | LamT Kind
+  | AppT
   
-  deriving (Functor,Foldable,Traversable)
+  
+    -- Clauses
+  
+  | Clause QualifiedConstructor
+  
+  deriving (Eq)
 
 
-type Term = ABT TermF
 
-isType :: Term -> Bool
+type Term = ABT PlutusSig
+type Type = ABT PlutusSig
+type Clause = ABT PlutusSig
+
+
+
+isType :: Type -> Bool
 isType (Var _) = True
-isType (In (DecnameT _)) = True
-isType (In (FunT _ _)) = True
-isType (In (ConT _ _)) = True
-isType (In (CompT _)) = True
-isType (In (ForallT _ _)) = True
-isType (In IntegerT) = True
-isType (In FloatT) = True
-isType (In ByteStringT) = True
-isType (In (LamT _ _)) = True
-isType (In (AppT _ _)) = True
-isType _ = False
+isType (c :$: _) = case c of
+  DecnameT _ -> True
+  FunT -> True
+  ConT _ -> True
+  CompT -> True
+  ForallT _ -> True
+  IntegerT -> True
+  FloatT -> True
+  ByteStringT -> True
+  LamT _ -> True
+  AppT -> True
+  _ -> False
 
 isTerm :: Term -> Bool
 isTerm (Var _) = True
@@ -117,99 +128,90 @@ isTerm m = not (isType m)
 
 
 
--- | Clauses are a component of terms that have bunch of pattern scopes
--- together with a clause body.
-
-data ClauseF r = Clause QualifiedConstructor r
-  deriving (Functor,Foldable,Traversable)
-
-
-type Clause = ClauseF (Scope TermF)
-
-
 
 
 
 
 decnameH :: QualifiedName -> Term
-decnameH n = In (Decname n)
+decnameH n = Decname n :$: []
 
 isaH :: Term -> Term -> Term
-isaH a m = In (Isa (scope [] a) (scope [] m))
+isaH a m = Isa :$: [scope [] a, scope [] m]
 
 abstH :: String -> Term -> Term
-abstH x m = In (Abst (scope [x] m))
+abstH x m = Abst :$: [scope [x] m]
 
 instH :: Term -> Term -> Term
-instH m a = In (Inst (scope [] m) (scope [] a))
+instH m a = Inst :$: [scope [] m, scope [] a]
 
 lamH :: String -> Term -> Term
-lamH v b = In (Lam (scope [v] b))
+lamH v b = Lam :$: [scope [v] b]
 
 appH :: Term -> Term -> Term
-appH f x = In (App (scope [] f) (scope [] x))
+appH f x = App :$: [scope [] f, scope [] x]
 
 conH :: QualifiedConstructor -> [Term] -> Term
-conH c xs = In (Con c (map (scope []) xs))
+conH c xs = Con c :$: map (scope []) xs
 
 caseH :: Term -> [Clause] -> Term
-caseH a cs = In (Case (scope [] a) cs)
+caseH a cs = Case :$: map (scope []) (a : cs)
 
 clauseH :: QualifiedConstructor -> [String] -> Term -> Clause
-clauseH qc vs b = Clause qc (scope vs b)
+clauseH qc vs b = Clause qc :$: [scope vs b]
 
 successH :: Term -> Term
-successH m = In (Success (scope [] m))
+successH m = Success :$: [scope [] m]
 
 failureH :: Term
-failureH = In Failure
+failureH = Failure :$: []
 
 compBuiltinH :: String -> Term
-compBuiltinH n = In (CompBuiltin  n)
+compBuiltinH n = CompBuiltin  n :$: []
+
 bindH :: Term -> String -> Term -> Term
-bindH m x n = In (Bind (scope [] m) (scope [x] n))
+bindH m x n = Bind :$: [scope [] m, scope [x] n]
 
 primIntegerH :: Integer -> Term
-primIntegerH x = In (PrimInteger x)
+primIntegerH x = PrimInteger x :$: []
 
 primFloatH :: Float -> Term
-primFloatH x = In (PrimFloat x)
+primFloatH x = PrimFloat x :$: []
 
 primByteStringH :: BS.ByteString -> Term
-primByteStringH x = In (PrimByteString x)
+primByteStringH x = PrimByteString x :$: []
 
 builtinH :: String -> [Term] -> Term
-builtinH n ms = In (Builtin n (map (scope []) ms))
+builtinH n ms = Builtin n :$: map (scope []) ms
 
 decnameTH :: QualifiedName -> Term
-decnameTH qn = In (DecnameT qn)
+decnameTH qn = DecnameT qn :$: []
 
 funTH :: Term -> Term -> Term
-funTH a b = In (FunT (scope [] a) (scope [] b))
+funTH a b = FunT :$: [scope [] a, scope [] b]
 
 conTH :: QualifiedConstructor -> [Term] -> Term
-conTH qc as = In (ConT qc (map (scope []) as))
+conTH qc as = ConT qc :$: map (scope []) as
 
 compTH :: Term -> Term
-compTH a = In (CompT (scope [] a))
+compTH a = CompT :$: [scope [] a]
 
 forallTH :: String -> Kind -> Term -> Term
-forallTH x k a = In (ForallT k (scope [x] a))
+forallTH x k a = ForallT k :$: [scope [x] a]
 
 byteStringTH :: Term
-byteStringTH = In ByteStringT
+byteStringTH = ByteStringT :$: []
 
 integerTH :: Term
-integerTH = In IntegerT
+integerTH = IntegerT :$: []
 
 floatTH :: Term
-floatTH = In FloatT
+floatTH = FloatT :$: []
 
 lamTH :: String -> Kind -> Term -> Term
-lamTH x k a = In (LamT k (scope [x] a))
+lamTH x k a = LamT k :$: [scope [x] a]
 
 appTH :: Term -> Term -> Term
-appTH f a = In (AppT (scope [] f) (scope [] a))
+appTH f a = AppT :$: [scope [] f, scope [] a]
 
 
 
@@ -227,68 +229,58 @@ instance Parens Term where
   
   parenRec (Var v) =
     name v
-  parenRec (In (Decname n)) =
+  parenRec (Decname n :$: _) =
     prettyQualifiedName n
-  parenRec (In (Isa a m)) =
+  parenRec (Isa :$: [a,m]) =
     "(isa "
       ++ parenthesize Nothing (instantiate0 a)
       ++ " "
       ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
-  parenRec (In (Abst sc)) =
+  parenRec (Abst :$: [sc]) =
     "(abs "
       ++ head (names sc)
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
-  parenRec (In (Inst m a)) =
+  parenRec (Inst :$: [m,a]) =
     "(inst "
       ++ parenthesize Nothing (instantiate0 m)
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ ")"
-  parenRec (In (Lam sc)) =
+  parenRec (Lam :$: [sc]) =
     "(lam "
       ++ head (names sc)
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
-  parenRec (In (App f a)) =
+  parenRec (App :$: [f,a]) =
     "["
       ++ parenthesize Nothing (instantiate0 f)
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ "]"
-  parenRec (In (Con c as)) =
+  parenRec (Con c :$: as) =
     "(con "
       ++ prettyQualifiedConstructor c
       ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
       ++ ")"
-  parenRec (In (Case a cs)) =
+  parenRec (Case :$: (a:cs)) =
     "(case "
       ++ parenthesize Nothing (body a)
       ++ " "
-      ++ unwords (map auxClause cs)
+      ++ unwords (map (parenthesize Nothing . instantiate0) cs)
       ++ ")"
-    where
-      auxClause :: Clause -> String
-      auxClause (Clause con sc) =
-        "(cl "
-        ++ prettyQualifiedConstructor con
-        ++ " ("
-        ++ unwords (names sc)
-        ++ ") "
-        ++ parenthesize Nothing (body sc)
-        ++ ")"
-  parenRec (In (Success m)) =
+  parenRec (Success :$: [m]) =
     "(success "
       ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
-  parenRec (In Failure ) =
+  parenRec (Failure :$: []) =
     "(failure)"
-  parenRec (In (CompBuiltin n)) =
+  parenRec (CompBuiltin n :$: []) =
     "(compbuiltin" ++ n ++ ")"
-  parenRec (In (Bind m sc)) =
+  parenRec (Bind :$: [m,sc]) =
     "(bind "
     ++ parenthesize Nothing (instantiate0 m)
     ++ " "
@@ -296,36 +288,36 @@ instance Parens Term where
     ++ " "
     ++ parenthesize Nothing (body sc)
     ++ ")"
-  parenRec (In (PrimInteger i)) =
+  parenRec (PrimInteger i :$: []) =
     show i
-  parenRec (In (PrimFloat f)) =
+  parenRec (PrimFloat f :$: []) =
     show f
-  parenRec (In (PrimByteString bs)) =
+  parenRec (PrimByteString bs :$: []) =
     prettyByteString bs
-  parenRec (In (Builtin n ms)) =
+  parenRec (Builtin n :$: ms) =
     "(builtin "
       ++ n
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) ms)
       ++ ")"
-  parenRec (In (DecnameT qn)) =
+  parenRec (DecnameT qn :$: []) =
     prettyQualifiedName qn
-  parenRec (In (FunT a b)) =
+  parenRec (FunT :$: [a,b]) =
     "(fun "
       ++ parenthesize Nothing (instantiate0 a)
       ++ " "
       ++ parenthesize Nothing (instantiate0 b)
       ++ ")"
-  parenRec (In (ConT qc as)) =
+  parenRec (ConT qc :$: as) =
     "(con "
       ++ prettyQualifiedConstructor qc
       ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
       ++ ")"
-  parenRec (In (CompT a)) =
+  parenRec (CompT :$: [a]) =
     "(comp "
       ++ parenthesize Nothing (instantiate0 a)
       ++ ")"
-  parenRec (In (ForallT k sc)) =
+  parenRec (ForallT k :$: [sc]) =
     "(forall "
       ++ head (names sc)
       ++ " "
@@ -333,13 +325,13 @@ instance Parens Term where
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
-  parenRec (In ByteStringT) =
+  parenRec (ByteStringT :$: []) =
     "(bytestring)"
-  parenRec (In IntegerT) =
+  parenRec (IntegerT :$: []) =
     "(integer)"
-  parenRec (In FloatT) =
+  parenRec (FloatT :$: []) =
     "(float)"
-  parenRec (In (LamT k sc)) =
+  parenRec (LamT k :$: [sc]) =
     "(lam "
       ++ head (names sc)
       ++ " "
@@ -347,9 +339,19 @@ instance Parens Term where
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
-  parenRec (In (AppT f a)) =
+  parenRec (AppT :$: [f,a]) =
     "["
       ++ parenthesize Nothing (instantiate0 f)
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ "]"
+  parenRec (Clause qc :$: [sc]) =
+    "(" ++ prettyQualifiedConstructor qc
+        ++ " ("
+        ++ unwords (names sc)
+        ++ ") "
+        ++ parenthesize Nothing (body sc)
+        ++ ")"
+  parenRec _ =
+    error "You attempted to pretty print a syntactically ill-formed term. \
+          \There should be no way to reach this case."

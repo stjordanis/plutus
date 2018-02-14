@@ -1,4 +1,5 @@
 {-# OPTIONS -Wall #-}
+{-# LANGUAGE RankNTypes #-}
 
 
 
@@ -651,15 +652,25 @@ termDefinition =
 
 
 
+parseExactly :: (forall u. Parsec String u a) -> String -> Either String a
+parseExactly p str =
+  case parse (whiteSpace *> p <* eof) "(unknown)" str of
+    Left e -> Left (show e)
+    Right x -> Right x
 
 parseProgram :: String -> Either String Program
-parseProgram str =
-  case parse (whiteSpace *> program <* eof) "(unknown)" str of
-    Left e -> Left (show e)
-    Right p -> Right p
+parseProgram = parseExactly program
 
 parseTerm :: String -> Either String Term
-parseTerm str =
-  case parse (whiteSpace *> term <* eof) "(unknown)" str of
-    Left e -> Left (show e)
-    Right p -> Right p
+parseTerm = parseExactly term
+
+parseQualifiedName :: String -> Either String QualifiedName
+parseQualifiedName = parseExactly qualName
+
+parseQualifiedNamePrefixThenTerm
+  :: String -> Either String (QualifiedName,Term)
+parseQualifiedNamePrefixThenTerm =
+  parseExactly $
+    do qn <- qualName
+       m <- term
+       return (qn,m)

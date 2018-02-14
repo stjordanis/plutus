@@ -11,10 +11,10 @@ module PlutusCore.Program where
 
 import Utils.ABT
 import Utils.Pretty
--- import Utils.Names
+import PlutusShared.Qualified
 import PlutusCore.Term
 
--- import Data.List (intercalate)
+import Data.List (isPrefixOf)
 
 -- import GHC.Generics
 
@@ -34,7 +34,7 @@ prettyKindSig (KindSig x k) =
     ++ prettyKind k
     ++ ")"
 
-data Alt = Alt String [Scope TermF]
+data Alt = Alt String [Scope PlutusSig]
 
 prettyAlt :: Alt -> String
 prettyAlt (Alt c tscs) =
@@ -146,3 +146,56 @@ data Program =
 prettyProgram :: Program -> String
 prettyProgram (Program mods) =
   "(program " ++ unwords (map prettyModule mods) ++ ")"
+
+
+
+firstJust :: [Maybe a] -> Maybe a
+firstJust [] = Nothing
+firstJust (Nothing:xs) = firstJust xs
+firstJust (Just x:_) = Just x
+
+typeForQualifiedName :: Program -> QualifiedName -> Maybe Type
+typeForQualifiedName (Program ls) (QualifiedName l n) =
+  firstJust (map typeForQualifiedNameModule ls)
+  where
+    typeForQualifiedNameModule :: Module -> Maybe Type
+    typeForQualifiedNameModule (Module l' _ _ decls) | l == l' =
+      firstJust (map typeForQualifiedNameDecl decls)
+    typeForQualifiedNameModule _ = Nothing
+    
+    typeForQualifiedNameDecl :: Declaration -> Maybe Type
+    typeForQualifiedNameDecl (TermDeclaration n' t) | n == n' = Just t
+    typeForQualifiedNameDecl _ = Nothing
+
+
+
+
+definitionForQualifiedName :: Program -> QualifiedName -> Maybe Type
+definitionForQualifiedName (Program ls) (QualifiedName l n) =
+  firstJust (map definitionForQualifiedNameModule ls)
+  where
+    definitionForQualifiedNameModule :: Module -> Maybe Type
+    definitionForQualifiedNameModule (Module l' _ _ decls) | l == l' =
+      firstJust (map definitionForQualifiedNameDecl decls)
+    definitionForQualifiedNameModule _ = Nothing
+
+    definitionForQualifiedNameDecl :: Declaration -> Maybe Type
+    definitionForQualifiedNameDecl (TermDefinition n' m) | n == n' = Just m
+    definitionForQualifiedNameDecl _ = Nothing
+
+
+
+
+namesWithQualifiedNameAsPrefix :: Program -> QualifiedName -> [QualifiedName]
+namesWithQualifiedNameAsPrefix (Program ls) (QualifiedName l n) =
+  ls >>= namesWithQualifiedNameAsPrefixModule
+  where
+    namesWithQualifiedNameAsPrefixModule :: Module -> [QualifiedName]
+    namesWithQualifiedNameAsPrefixModule (Module l' _ _ decls) | l == l' =
+      decls >>= namesWithQualifiedNameAsPrefixDecl
+    namesWithQualifiedNameAsPrefixModule _ = []
+
+    namesWithQualifiedNameAsPrefixDecl :: Declaration -> [QualifiedName]
+    namesWithQualifiedNameAsPrefixDecl (TermDefinition n' m)
+      | isPrefixOf n n' = [QualifiedName l n']
+    namesWithQualifiedNameAsPrefixDecl _ = []
