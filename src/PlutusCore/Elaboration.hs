@@ -50,7 +50,6 @@ instance Decomposable () ElabError Judgment where
   decompose (IsTermValueJ m) = isTermValueJ m
   decompose (CheckJ ctx a m) = checkJ ctx a m
   decompose (SynthJ ctx m) = synthJ ctx m
-  decompose (ClauseJ ctx tc as t cl) = clauseJ ctx tc as t cl
   decompose (EqualJ ctx a b) = equalJ ctx a b
   decompose (EqualAllJ ctx a bs) = equalAllJ ctx a bs
 
@@ -306,55 +305,6 @@ termVariableInHypotheticalContext (_ : hypctx) y =
 
 
 
-noRepeatedConstructors :: [Clause] -> Decomposer ()
-noRepeatedConstructors cls =
-  do let cs = [ c | Clause c :$: [_] <- cls ]
-         uniqueCs = nub cs
-         repeats = nub (cs \\ uniqueCs)
-     unless (null repeats)
-       (failure
-         (ElabError
-           ("The constructors "
-             ++ unwords [ "`" ++ c ++ "`"
-                        | c <- repeats
-                        ]
-             ++ " occur in distinct clauses of a case term")))
-
-
-
-
-
-
-coversAllConstructors :: Context
-                      -> String
-                      -> [Clause]
-                      -> Decomposer ()
-coversAllConstructors ctx nm cls =
-  do let cs = extractCons ctx
-         missing = cs \\ [ c | Clause c :$: [_] <- cls ]
-     unless (null missing)
-       (failure
-         (ElabError
-           ("The constructors "
-             ++ unwords [ "`" ++ c ++ "`"
-                        | c <- missing
-                        ]
-             ++ " are missing clauses in a case term")))
-  where
-    extractCons (Context { nominalContext = ds }) =
-      extractFromDeclarations ds
-    
-    extractFromDeclarations [] = []
-    extractFromDeclarations (DataDeclaration nm' _ alts:ds)
-      | nm == nm' = [ connm | Alt connm _ <- alts ]
-      | otherwise = extractFromDeclarations ds
-    extractFromDeclarations (_:ds) = extractFromDeclarations ds
-
-
-
-
-
-
 signatureOfBuiltin :: String -> Decomposer ([Term], Term)
 signatureOfBuiltin n =
   case lookup n builtinSigs of
@@ -372,28 +322,23 @@ signatureOfBuiltin n =
       , ("remainderInteger", ([integerTH, integerTH], integerTH))
       , ("lessThanInteger"
         ,  ( [integerTH, integerTH]
-           , conTH "Bool" []
-           -- , scottBool
+           , scottBool
            ))
       , ("lessThanEqualsInteger"
         , ( [integerTH, integerTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("greaterThanInteger"
         , ( [integerTH, integerTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("greaterThanEqualsInteger"
         , ( [integerTH, integerTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("equalsInteger"
         ,  ( [integerTH, integerTH]
-           , conTH "Bool" []
-           -- , scottBool
+           , scottBool
            ))
       , ("integerToFloat", ([integerTH], floatTH))
       , ("integerToByteString", ([integerTH], byteStringTH))
@@ -405,28 +350,23 @@ signatureOfBuiltin n =
       , ("divideFloat", ([floatTH, floatTH], floatTH))
       , ("lessThanFloat"
         ,  ( [floatTH, floatTH]
-           , conTH "Bool" []
-           -- , scottBool
+           , scottBool
            ))
       , ("lessThanEqualsFloat"
         , ( [floatTH, floatTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("greaterThanFloat"
         , ( [floatTH, floatTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("greaterThanEqualsFloat"
         , ( [floatTH, floatTH]
-          , conTH "Bool" []
-          -- , scottBool
+          , scottBool
           ))
       , ("equalsFloat"
         ,  ( [floatTH, floatTH]
-           , conTH "Bool" []
-           -- , scottBool
+           , scottBool
            ))
       , ("ceil", ([floatTH], integerTH))
       , ("floor", ([floatTH], integerTH))
@@ -440,8 +380,7 @@ signatureOfBuiltin n =
       , ("sha3_256", ([byteStringTH], byteStringTH))
       , ("equalsByteString"
         ,  ( [byteStringTH, byteStringTH]
-           , conTH "Bool" []
-           -- , scottBool
+           , scottBool
            ))
       ]
     
@@ -463,7 +402,7 @@ synthCompBuiltin :: String -> Decomposer Term
 synthCompBuiltin "txhash" = return byteStringTH
 synthCompBuiltin "blocknum" = return integerTH
 synthCompBuiltin "blocktime" =
-  return (conTH "DateTime" [])
+  return (decnameH "dateTime")
 synthCompBuiltin n =
   failure (ElabError ("Unknown computation builtin: " ++ n))
 
@@ -560,7 +499,7 @@ isTypeJ _ (Var (Bound _ _)) =
   failure
     (ElabError
       ("Cannot synthesize the kind of a bound type variable."))
-isTypeJ ctx (DecnameT n :$: []) =
+isTypeJ ctx (Decname n :$: []) =
   typeNameInContext ctx n
 isTypeJ ctx (FunT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
@@ -578,30 +517,18 @@ isTypeJ ctx (FunT :$: [a,b]) =
              ++ " should be (type) but is actually "
              ++ prettyKind k')))
      return TypeK
-isTypeJ ctx (ConT c :$: as) =
-  do ks <- typeConstructorInContext ctx c
-     unless (length as == length ks)
+isTypeJ ctx (FixT :$: [sc]) =
+  do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+         ctx' = ctx { hypotheticalContext =
+                        HasKind n TypeK : hypotheticalContext ctx
+                    }
+     k' <- goal (IsTypeJ ctx' a)
+     unless (k' == TypeK)
        (failure
-         (ElabError
-           ("Type constructor `" ++ c
-             ++ "` expects " ++ show (length ks)
-             ++ " arguments but was given "
-             ++ show (length as))))
-     zipWithM_
-       (\a k -> 
-         do k' <- goal (IsTypeJ ctx (instantiate0 a))
-            unless (k == k')
-              (failure
-                (ElabError
-                  ("Type constructor `" ++ c
-                    ++ "` expects an argument of kind `"
-                    ++ prettyKind k
-                    ++ "` but was given an argument of kind `"
-                    ++ prettyKind k'
-                    ++ "`")))
-            return ())
-       as
-       ks
+          (ElabError
+            ("Kind of " ++ pretty a
+              ++ " should be (type) but is actually "
+              ++ prettyKind k')))
      return TypeK
 isTypeJ ctx (CompT :$: [a]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
@@ -671,25 +598,24 @@ isTypeJ _ m =
 isTypeValueJ :: Term -> Decomposer ()
 isTypeValueJ (Var _) =
   return ()
-isTypeValueJ (DecnameT _ :$: []) =
+isTypeValueJ (Decname _ :$: []) =
   return ()
 isTypeValueJ (FunT :$: [a,b]) =
   do goal (IsTypeValueJ (instantiate0 a))
      goal (IsTypeValueJ (instantiate0 b))
-isTypeValueJ (ConT _ :$: as) =
-  forM_ as $ \a ->
-    goal (IsTypeValueJ (instantiate0 a))
 isTypeValueJ (CompT :$: [a]) =
   goal (IsTypeValueJ (instantiate0 a))
-isTypeValueJ (LamT _ :$: [_]) =
-  return ()
 isTypeValueJ (ForallT _ :$: [_]) =
+  return ()
+isTypeValueJ (FixT :$: [_]) =
   return ()
 isTypeValueJ (IntegerT :$: []) =
   return ()
 isTypeValueJ (FloatT :$: []) =
   return ()
 isTypeValueJ (ByteStringT :$: []) =
+  return ()
+isTypeValueJ (LamT _ :$: [_]) =
   return ()
 isTypeValueJ a =
   failure
@@ -706,9 +632,8 @@ isTermValueJ (Abst :$: [_]) =
   return ()
 isTermValueJ (Lam :$: [_]) =
   return ()
-isTermValueJ (Con _ :$: ms) =
-  forM_ ms $ \m ->
-    goal (IsTermValueJ (instantiate0 m))
+isTermValueJ (Wrap :$: [_]) =
+  return ()
 isTermValueJ (Success :$: [m]) =
   goal (IsTermValueJ (instantiate0 m))
 isTermValueJ (Failure :$: []) =
@@ -743,46 +668,10 @@ checkJ ctx (FunT :$: [a,b]) (Lam :$: [sc']) =
                         HasType n (instantiate0 a) : hypotheticalContext ctx
                     }
      goal (CheckJ ctx' (instantiate0 b) m)
-checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
-  do (bscs, tc) <- termConstructorInContext ctx c'
-     unless (tc == c)
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c'
-             ++ "` constructs a term in the type `"
-             ++ tc
-             ++ "` but is being checked against `"
-             ++ c)))
-     unless (length bscs == length ms)
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c'
-             ++ "` expects " ++ show (length bscs)
-             ++ " arguments but was given " ++ show (length ms))))
-     let as' = map instantiate0 as
-         bs = map (\bsc -> instantiate bsc as') bscs
-         tenv = nominalContextToTypeEnv ctx
-         normal_bs = map (evaluateType tenv) bs
-     forM_ (zip normal_bs ms) $ \(b,m) ->
-       goal (CheckJ ctx b (instantiate0 m))
-checkJ ctx t (Case :$: (m:clsscs)) =
-  do a <- goal (SynthJ ctx (instantiate0 m))
-     case a of
-       ConT tc :$: bs ->
-         do let cls = map instantiate0 clsscs
-            noRepeatedConstructors cls
-            coversAllConstructors ctx tc cls
-            let tenv = nominalContextToTypeEnv ctx
-                normal_bs = map (evaluateType tenv . instantiate0) bs 
-            forM_ cls $ \cl ->
-              goal (ClauseJ ctx tc normal_bs t cl)
-       _ ->
-         failure
-           (ElabError
-             ("Cannot case on non-constructed data `"
-               ++ pretty (instantiate0 m) ++ "a"))
+checkJ ctx a@(FixT :$: [sc]) (Wrap :$: [m]) =
+  do let tenv = nominalContextToTypeEnv ctx
+         b = evaluateType tenv (instantiate sc [a])
+     goal (CheckJ ctx b (instantiate0 m))
 checkJ ctx (CompT :$: [a]) (Success :$: [m]) =
   goal (CheckJ ctx (instantiate0 a) (instantiate0 m))
 checkJ _ (CompT :$: [_]) (Failure :$: []) =
@@ -860,6 +749,16 @@ synthJ ctx (App :$: [m,n]) =
               (ElabError
                 ("Cannot apply the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-function type `" ++ pretty a ++ "`"))
+synthJ ctx (Unwrap :$: [m]) =
+  do a <- goal (SynthJ ctx (instantiate0 m))
+     case a of
+       FixT :$: [sc] ->
+         let tenv = nominalContextToTypeEnv ctx
+         in return (evaluateType tenv (instantiate sc [a]))
+       _ -> failure
+              (ElabError
+                ("Cannot unwrap the term `" ++ pretty (instantiate0 m)
+                  ++ "` which has non-fixedpoint type `" ++ pretty a ++ "`"))
 synthJ _ (CompBuiltin n :$: []) =
   do t <- synthCompBuiltin n
      return (compTH t)
@@ -908,48 +807,6 @@ synthJ _ a =
     (ElabError
       ("Cannot synthesize the type of `" ++ pretty a ++ "`"))
 
-
-
-
-
-
-clauseJ
-  :: Context
-  -> String
-  -> [Term]
-  -> Term
-  -> Clause
-  -> Decomposer ()
-clauseJ ctx tc as t (Clause c :$: [sc]) =
-  do (bscs, tc') <- termConstructorInContext ctx c
-     unless (tc == tc')
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c
-             ++ "` constructs a term in the type `"
-             ++ tc
-             ++ "` but is being checked against `"
-             ++ tc')))
-     unless (length bscs == length (names sc))
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c
-             ++ "` expects " ++ show (length bscs)
-             ++ " arguments but was given " ++ show (length (names sc)))))
-     let (_, ns, m) = openScope (hypotheticalContext ctx) sc
-         bs = map (\bsc -> instantiate bsc as) bscs
-         tenv = nominalContextToTypeEnv ctx
-         normal_bs = map (evaluateType tenv) bs
-         ctx' = ctx { hypotheticalContext =
-                        [ HasType n b | (n,b) <- zip ns normal_bs ]
-                          ++ hypotheticalContext ctx
-                    }
-     goal (CheckJ ctx' t m)
-clauseJ _ _ _ _ _ =
-  error "Tried to check that a non-clause is a well-formed clause.\
-        \ This should be impossible."
 
 
 

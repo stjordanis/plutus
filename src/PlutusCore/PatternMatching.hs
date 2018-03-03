@@ -18,7 +18,7 @@ import Utils.ABT
 
 
 
-
+{-
 matchPattern :: String -> Int -> Term -> Maybe [Term]
 matchPattern c l (Con c' :$: as)
   | c == c' && l == length as =
@@ -35,3 +35,4 @@ matchClauses ((Clause c :$: [sc]):cs) v =
 matchClauses _ _ =
     error "You attempted to match on a syntactically malformed clause. There \
           \should be no way to reach this clause."
+-}

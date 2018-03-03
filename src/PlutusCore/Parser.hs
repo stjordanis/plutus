@@ -247,8 +247,8 @@ term =
   <|> inst
   <|> lambda
   <|> application
-  <|> conData
-  <|> caseTerm
+  <|> wrap
+  <|> unwrap
   <|> success
   <|> failure
   <|> compbuiltin
@@ -321,32 +321,20 @@ application =
 
 
 
-conData :: Parsec String u Term
-conData =
-  construct "con" $ do
-    c <- conName
-    ms <- many term
-    return $ conH c ms
-
-
-
-caseTerm :: Parsec String u Term
-caseTerm =
-  construct "case" $ do
+wrap :: Parsec String u Term
+wrap =
+  construct "wrap" $ do
     m <- term
-    cs <- many clause
-    return $ caseH m cs
+    return $ wrapH m
 
 
 
-clause :: Parsec String u Clause
-clause =
-  parens $ do
-    c <- conName
-    xs <- parens (many variableName)
+unwrap :: Parsec String u Term
+unwrap =
+  construct "unwrap" $ do
     m <- term
-    return $ clauseH c xs m
-
+    return $ unwrapH m
+  
 
 
 success :: Parsec String u Term
@@ -414,9 +402,9 @@ typep =
       variableT
   <|> decnameT
   <|> funT
-  <|> conT
   <|> compT
   <|> forallT
+  <|> fixT
   <|> bytestringT
   <|> integerT
   <|> floatT
@@ -431,7 +419,7 @@ variableT =
 decnameT :: Parsec String u Term
 decnameT =
   do n <- declaredName
-     return $ decnameTH n
+     return $ decnameH n
 
 funT :: Parsec String u Term
 funT =
@@ -439,13 +427,6 @@ funT =
     a <- typep
     b <- typep
     return $ funTH a b
-
-conT :: Parsec String u Term
-conT =
-  construct "con" $ do
-    c <- conName
-    as <- many typep
-    return $ conTH c as
 
 compT :: Parsec String u Term
 compT =
@@ -460,6 +441,13 @@ forallT =
     k <- kind
     a <- typep
     return $ forallTH x k a
+
+fixT :: Parsec String u Term
+fixT =
+  construct "fix" $ do
+    x <- variableName
+    a <- typep
+    return $ fixTH x a
 
 bytestringT :: Parsec String u Term
 bytestringT =
@@ -558,7 +546,7 @@ typeDeclaration =
   construct "type" $ do
     n <- declaredName
     tv0 <- typep
-    let tv = freeToDefined (\n0 -> DecnameT n0 :$: []) tv0
+    let tv = freeToDefined (\n0 -> Decname n0 :$: []) tv0
     return $ TypeDeclaration n tv
 
 termDeclaration :: Parsec String u Declaration
@@ -566,7 +554,7 @@ termDeclaration =
   construct "declare" $ do
     n <- declaredName
     t0 <- typep
-    let t = freeToDefined (\n0 -> DecnameT n0 :$: []) t0
+    let t = freeToDefined (\n0 -> Decname n0 :$: []) t0
     return $ TermDeclaration n t
 
 termDefinition :: Parsec String u Declaration

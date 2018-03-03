@@ -1,0 +1,12 @@
+(program
+  
+  (type unit
+    (fix r
+      (forall a (type)
+        (fun a a))))
+  
+  (declare mkUnit unit)
+  (define mkUnit
+    (wrap (abs a (lam x x))))
+    
+  )

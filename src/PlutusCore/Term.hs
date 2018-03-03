@@ -55,17 +55,17 @@ prettyKind (FunK k k') =
 
 data PlutusSig
   = 
-    
-    -- Terms
-    
     Decname String
+
+
+    -- Terms
   | Isa
   | Abst
   | Inst
   | Lam
   | App
-  | Con String
-  | Case
+  | Wrap
+  | Unwrap
   | Success
   | Failure
   | CompBuiltin String
@@ -78,21 +78,15 @@ data PlutusSig
   
     -- Types
   
-  | DecnameT String
   | FunT
-  | ConT String
   | CompT
   | ForallT Kind
+  | FixT
   | IntegerT
   | FloatT
   | ByteStringT
   | LamT Kind
   | AppT
-  
-  
-    -- Clauses
-  
-  | Clause String
   
   deriving (Eq)
 
@@ -100,18 +94,17 @@ data PlutusSig
 
 type Term = ABT PlutusSig
 type Type = ABT PlutusSig
-type Clause = ABT PlutusSig
 
 
 
 isType :: Type -> Bool
 isType (Var _) = True
 isType (c :$: _) = case c of
-  DecnameT _ -> True
+  Decname _ -> True
   FunT -> True
-  ConT _ -> True
   CompT -> True
   ForallT _ -> True
+  FixT -> True
   IntegerT -> True
   FloatT -> True
   ByteStringT -> True
@@ -149,14 +142,11 @@ lamH v b = Lam :$: [scope [v] b]
 appH :: Term -> Term -> Term
 appH f x = App :$: [scope [] f, scope [] x]
 
-conH :: String -> [Term] -> Term
-conH c xs = Con c :$: map (scope []) xs
+wrapH :: Term -> Term
+wrapH m = Wrap :$: [scope [] m]
 
-caseH :: Term -> [Clause] -> Term
-caseH a cs = Case :$: map (scope []) (a : cs)
-
-clauseH :: String -> [String] -> Term -> Clause
-clauseH c vs b = Clause c :$: [scope vs b]
+unwrapH :: Term -> Term
+unwrapH m = Unwrap :$: [scope [] m]
 
 successH :: Term -> Term
 successH m = Success :$: [scope [] m]
@@ -182,20 +172,17 @@ primByteStringH x = PrimByteString x :$: []
 builtinH :: String -> [Term] -> Term
 builtinH n ms = Builtin n :$: map (scope []) ms
 
-decnameTH :: String -> Term
-decnameTH n = DecnameT n :$: []
-
 funTH :: Term -> Term -> Term
 funTH a b = FunT :$: [scope [] a, scope [] b]
-
-conTH :: String -> [Term] -> Term
-conTH c as = ConT c :$: map (scope []) as
 
 compTH :: Term -> Term
 compTH a = CompT :$: [scope [] a]
 
 forallTH :: String -> Kind -> Term -> Term
 forallTH x k a = ForallT k :$: [scope [x] a]
+
+fixTH :: String -> Term -> Term
+fixTH x a = FixT :$: [scope [x] a]
 
 byteStringTH :: Term
 byteStringTH = ByteStringT :$: []
@@ -260,16 +247,13 @@ instance Parens Term where
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ "]"
-  parenRec (Con c :$: as) =
-    "(con "
-      ++ c
-      ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
+  parenRec (Wrap :$: [m]) =
+    "(wrap "
+      ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
-  parenRec (Case :$: (a:cs)) =
-    "(case "
-      ++ parenthesize Nothing (body a)
-      ++ " "
-      ++ unwords (map (parenthesize Nothing . instantiate0) cs)
+  parenRec (Unwrap :$: [m]) =
+    "(unwrap "
+      ++ parenthesize Nothing (instantiate0 m)
       ++ ")"
   parenRec (Success :$: [m]) =
     "(success "
@@ -299,18 +283,11 @@ instance Parens Term where
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) ms)
       ++ ")"
-  parenRec (DecnameT n :$: []) =
-    n
   parenRec (FunT :$: [a,b]) =
     "(fun "
       ++ parenthesize Nothing (instantiate0 a)
       ++ " "
       ++ parenthesize Nothing (instantiate0 b)
-      ++ ")"
-  parenRec (ConT c :$: as) =
-    "(con "
-      ++ c
-      ++ concat (map ((" " ++) . parenthesize Nothing . instantiate0) as)
       ++ ")"
   parenRec (CompT :$: [a]) =
     "(comp "
@@ -321,6 +298,12 @@ instance Parens Term where
       ++ head (names sc)
       ++ " "
       ++ prettyKind k
+      ++ " "
+      ++ parenthesize Nothing (body sc)
+      ++ ")"
+  parenRec (FixT :$: [sc]) =
+    "(fix "
+      ++ head (names sc)
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
@@ -344,13 +327,6 @@ instance Parens Term where
       ++ " "
       ++ parenthesize Nothing (instantiate0 a)
       ++ "]"
-  parenRec (Clause c :$: [sc]) =
-    "(" ++ c
-        ++ " ("
-        ++ unwords (names sc)
-        ++ ") "
-        ++ parenthesize Nothing (body sc)
-        ++ ")"
   parenRec _ =
     error "You attempted to pretty print a syntactically ill-formed term. \
           \There should be no way to reach this case."

@@ -103,13 +103,6 @@ instance PD.ShowElabError () ElabError Judgment where
       prettyJudgment (CheckJ _ a m) =
         "checking that the type `" ++ pretty a
         ++ "` contains the program `" ++ pretty m ++ "`"
-      prettyJudgment (ClauseJ _ _ _ _ (Clause c :$: _)) =
-        "checking the clause for `"
-        ++ c
-        ++ "`"
-      prettyJudgment (ClauseJ _ _ _ _ _) =
-        error "Tried to check that a non-clause was a well-formed clause.\
-              \ This should be impossible to reach."
       prettyJudgment (EqualJ _ a b) =
         "enforcing the equality of `"
         ++ pretty a

@@ -31,14 +31,13 @@ data CKFrame = InIsaL Term
              | InInstR Term
              | InAppLeft Term
              | InAppRight Term
-             | InCon String [Term] [Term]
-             | InCase [Clause]
+             | InWrap
+             | InUnwrap
              | InSuccess
              | InBind (Scope PlutusSig)
              | InBuiltin String [Term] [Term]
              | InFunTL Term
              | InFunTR Term
-             | InConT String [Term] [Term]
              | InCompT
              | InAppTL Term
              | InAppTR Term
@@ -63,7 +62,7 @@ rec petrol bci denv stk (Var x) =
 rec petrol bci denv stk (Decname n :$: []) =
   case lookup n denv of
     Nothing ->
-      Left ("Unknown constant/defined term: " ++ n)
+      Left ("Unknown defined name: " ++ n)
     Just m ->
       rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (Isa :$: [a,m]) =
@@ -76,12 +75,10 @@ rec petrol bci denv stk m@(Lam :$: [_]) =
   ret (petrol - 1) bci denv stk m
 rec petrol bci denv stk (App :$: [f,x]) =
   rec (petrol - 1) bci denv (InAppLeft (instantiate0 x) : stk) (instantiate0 f)
-rec petrol bci denv stk m@(Con _ :$: []) =
-  ret (petrol - 1) bci denv stk m
-rec petrol bci denv stk (Con c :$: (m:ms)) =
-  rec (petrol - 1) bci denv (InCon c [] (map instantiate0 ms) : stk) (instantiate0 m)
-rec petrol bci denv stk (Case :$: (m:cs)) =
-  rec (petrol - 1) bci denv (InCase (map instantiate0 cs) : stk) (instantiate0 m)
+rec petrol bci denv stk (Wrap :$: [m]) =
+  rec (petrol - 1) bci denv (InWrap : stk) (instantiate0 m)
+rec petrol bci denv stk (Unwrap :$: [m]) =
+  rec (petrol - 1) bci denv (InUnwrap : stk) (instantiate0 m)
 rec petrol bci denv stk (Success :$: [m]) =
   rec (petrol - 1) bci denv (InSuccess : stk) (instantiate0 m)
 rec petrol bci denv stk m@(Failure :$: []) =
@@ -104,22 +101,14 @@ rec petrol bci denv stk (Builtin n :$: []) =
       ret (petrol - 1) bci denv stk m'
 rec petrol bci denv stk (Builtin n :$: (m:ms)) =
   rec (petrol - 1) bci denv (InBuiltin n [] (map instantiate0 ms) : stk) (instantiate0 m)
-rec petrol bci denv stk (DecnameT n :$: []) =
-  case lookup n denv of
-    Nothing ->
-      Left ("Unknown constant/defined type: " ++ n)
-    Just m ->
-      rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (FunT :$: [a,b]) =
   rec (petrol - 1) bci denv (InFunTL (instantiate0 b) : stk) (instantiate0 a)
-rec petrol bci denv stk (ConT c :$: []) =
-  ret (petrol - 1) bci denv stk (ConT c :$: [])
-rec petrol bci denv stk (ConT c :$: (a:as)) =
-  rec (petrol - 1) bci denv (InConT c [] (map instantiate0 as) : stk) (instantiate0 a)
 rec petrol bci denv stk (CompT :$: [a]) =
   rec (petrol - 1) bci denv (InCompT : stk) (instantiate0 a)
 rec petrol bci denv stk (ForallT k :$: [sc]) =
   ret (petrol - 1) bci denv stk (ForallT k :$: [sc])
+rec petrol bci denv stk (FixT :$: [sc]) =
+  ret (petrol - 1) bci denv stk (FixT :$: [sc])
 rec petrol bci denv stk (ByteStringT :$: []) =
   ret (petrol - 1) bci denv stk (ByteStringT :$: [])
 rec petrol bci denv stk (IntegerT :$: []) =
@@ -166,17 +155,12 @@ ret petrol bci denv (InAppRight f : stk) x =
       rec (petrol - 1) bci denv stk (instantiate sc [x])
     _ ->
       ret (petrol - 1) bci denv stk (appH f x)
-ret petrol bci denv (InCon c revls rs : stk) m =
-  case rs of
-    [] -> ret (petrol - 1) bci denv stk (conH c (reverse (m:revls)))
-    m':rs' -> rec (petrol - 1) bci denv (InCon c (m:revls) rs' : stk) m'
-ret petrol bci denv (InCase cs : stk) m =
-  case matchClauses cs m of
-    Nothing ->
-      Left ("Incomplete pattern match: "
-             ++ pretty (Case :$: map (scope []) (m:cs)))
-    Just m'  ->
-      rec (petrol - 1) bci denv stk m'
+ret petrol bci denv (InWrap : stk) m =
+  ret (petrol - 1) bci denv stk (wrapH m)
+ret petrol bci denv (InUnwrap : stk) m =
+  case m of
+    Wrap :$: [m'] -> ret (petrol - 1) bci denv stk (instantiate0 m')
+    _ -> ret (petrol - 1) bci denv stk (unwrapH m)
 ret petrol bci denv (InSuccess : stk) m =
   ret (petrol - 1) bci denv stk (successH m)
 ret petrol bci denv (InBind sc : stk) m =
@@ -194,10 +178,6 @@ ret petrol bci denv (InFunTL b : stk) a' =
   rec (petrol - 1) bci denv (InFunTR a' : stk) b
 ret petrol bci denv (InFunTR a' : stk) b' =
   ret (petrol - 1) bci denv stk (funTH a' b')
-ret petrol bci denv (InConT c revas' [] : stk) a' =
-  ret (petrol - 1) bci denv stk (conTH c (reverse (a':revas')))
-ret petrol bci denv (InConT c revas' (a2:as) : stk) a' =
-  rec (petrol - 1) bci denv (InConT c (a':revas') as : stk) a2
 ret petrol bci denv (InCompT : stk) a' = 
   ret (petrol - 1) bci denv stk (compTH a')
 ret petrol bci denv (InAppTL a : stk) f' =

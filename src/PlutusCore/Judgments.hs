@@ -48,14 +48,6 @@ data Judgment r where
          -> Term
          -> Judgment Term
   
-  -- Θ ; κ A* ⊢ C ∋ cl
-  ClauseJ :: Context
-          -> String
-          -> [Type]
-          -> Type
-          -> Clause
-          -> Judgment ()
-  
   -- Θ ⊢ A = B
   EqualJ :: Context
          -> Type
