@@ -431,7 +431,7 @@ variableT =
 decnameT :: Parsec String u Term
 decnameT =
   do n <- declaredName
-     return $ decnameTH n
+     return $ decnameH n
 
 funT :: Parsec String u Term
 funT =
@@ -558,7 +558,7 @@ typeDeclaration =
   construct "type" $ do
     n <- declaredName
     tv0 <- typep
-    let tv = freeToDefined (\n0 -> DecnameT n0 :$: []) tv0
+    let tv = freeToDefined (\n0 -> Decname n0 :$: []) tv0
     return $ TypeDeclaration n tv
 
 termDeclaration :: Parsec String u Declaration
@@ -566,7 +566,7 @@ termDeclaration =
   construct "declare" $ do
     n <- declaredName
     t0 <- typep
-    let t = freeToDefined (\n0 -> DecnameT n0 :$: []) t0
+    let t = freeToDefined (\n0 -> Decname n0 :$: []) t0
     return $ TermDeclaration n t
 
 termDefinition :: Parsec String u Declaration

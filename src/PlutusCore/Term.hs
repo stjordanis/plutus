@@ -55,10 +55,12 @@ prettyKind (FunK k k') =
 
 data PlutusSig
   = 
+  
+    Decname String
+  
     
     -- Terms
     
-    Decname String
   | Isa
   | Abst
   | Inst
@@ -78,7 +80,6 @@ data PlutusSig
   
     -- Types
   
-  | DecnameT String
   | FunT
   | ConT String
   | CompT
@@ -107,7 +108,7 @@ type Clause = ABT PlutusSig
 isType :: Type -> Bool
 isType (Var _) = True
 isType (c :$: _) = case c of
-  DecnameT _ -> True
+  Decname _ -> True
   FunT -> True
   ConT _ -> True
   CompT -> True
@@ -121,6 +122,7 @@ isType (c :$: _) = case c of
 
 isTerm :: Term -> Bool
 isTerm (Var _) = True
+isTerm (Decname _ :$: []) = True
 isTerm m = not (isType m)
 
 
@@ -181,9 +183,6 @@ primByteStringH x = PrimByteString x :$: []
 
 builtinH :: String -> [Term] -> Term
 builtinH n ms = Builtin n :$: map (scope []) ms
-
-decnameTH :: String -> Term
-decnameTH n = DecnameT n :$: []
 
 funTH :: Term -> Term -> Term
 funTH a b = FunT :$: [scope [] a, scope [] b]
@@ -299,8 +298,6 @@ instance Parens Term where
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) ms)
       ++ ")"
-  parenRec (DecnameT n :$: []) =
-    n
   parenRec (FunT :$: [a,b]) =
     "(fun "
       ++ parenthesize Nothing (instantiate0 a)

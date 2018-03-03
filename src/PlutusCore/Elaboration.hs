@@ -560,7 +560,7 @@ isTypeJ _ (Var (Bound _ _)) =
   failure
     (ElabError
       ("Cannot synthesize the kind of a bound type variable."))
-isTypeJ ctx (DecnameT n :$: []) =
+isTypeJ ctx (Decname n :$: []) =
   typeNameInContext ctx n
 isTypeJ ctx (FunT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
@@ -671,7 +671,7 @@ isTypeJ _ m =
 isTypeValueJ :: Term -> Decomposer ()
 isTypeValueJ (Var _) =
   return ()
-isTypeValueJ (DecnameT _ :$: []) =
+isTypeValueJ (Decname _ :$: []) =
   return ()
 isTypeValueJ (FunT :$: [a,b]) =
   do goal (IsTypeValueJ (instantiate0 a))

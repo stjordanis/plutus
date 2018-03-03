@@ -63,7 +63,7 @@ rec petrol bci denv stk (Var x) =
 rec petrol bci denv stk (Decname n :$: []) =
   case lookup n denv of
     Nothing ->
-      Left ("Unknown constant/defined term: " ++ n)
+      Left ("Unknown defined name: " ++ n)
     Just m ->
       rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (Isa :$: [a,m]) =
@@ -104,12 +104,6 @@ rec petrol bci denv stk (Builtin n :$: []) =
       ret (petrol - 1) bci denv stk m'
 rec petrol bci denv stk (Builtin n :$: (m:ms)) =
   rec (petrol - 1) bci denv (InBuiltin n [] (map instantiate0 ms) : stk) (instantiate0 m)
-rec petrol bci denv stk (DecnameT n :$: []) =
-  case lookup n denv of
-    Nothing ->
-      Left ("Unknown constant/defined type: " ++ n)
-    Just m ->
-      rec (petrol - 1) bci denv stk m
 rec petrol bci denv stk (FunT :$: [a,b]) =
   rec (petrol - 1) bci denv (InFunTL (instantiate0 b) : stk) (instantiate0 a)
 rec petrol bci denv stk (ConT c :$: []) =

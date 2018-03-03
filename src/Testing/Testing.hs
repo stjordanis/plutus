@@ -64,7 +64,7 @@ evalAndPrint :: Program -> Environment -> String -> IO ()
 evalAndPrint prog env s =
   case parseTerm s of
     Left e -> printError e
-    Right m -> evalAndPrintTerm prog env m
+    Right m -> evalAndPrintTerm prog env (freeToDefined (\n -> Decname n :$: []) m)
 
 
 data PromptCommand = Quit
