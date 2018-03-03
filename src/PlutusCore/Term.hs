@@ -114,6 +114,7 @@ isType (c :$: _) = case c of
 
 isTerm :: Term -> Bool
 isTerm (Var _) = True
+isTerm (Decname _ :$: []) = True
 isTerm m = not (isType m)
 
 
