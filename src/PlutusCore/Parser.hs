@@ -249,6 +249,8 @@ term =
   <|> application
   <|> conData
   <|> caseTerm
+  <|> wrap
+  <|> unwrap
   <|> success
   <|> failure
   <|> compbuiltin
@@ -349,6 +351,22 @@ clause =
 
 
 
+wrap :: Parsec String u Clause
+wrap =
+  construct "wrap" $ do
+    m <- term
+    return $ wrapH m
+
+
+
+unwrap :: Parsec String u Clause
+unwrap =
+  construct "unwrap" $ do
+    m <- term
+    return $ unwrapH m
+
+
+
 success :: Parsec String u Term
 success =
   construct "success" $ do
@@ -417,6 +435,7 @@ typep =
   <|> conT
   <|> compT
   <|> forallT
+  <|> fixT
   <|> bytestringT
   <|> integerT
   <|> floatT
@@ -460,6 +479,13 @@ forallT =
     k <- kind
     a <- typep
     return $ forallTH x k a
+
+fixT :: Parsec String u Term
+fixT =
+  construct "fix" $ do
+    x <- variableName
+    a <- typep
+    return $ fixTH x a
 
 bytestringT :: Parsec String u Term
 bytestringT =

@@ -603,6 +603,19 @@ isTypeJ ctx (ConT c :$: as) =
        as
        ks
      return TypeK
+isTypeJ ctx (FixT :$: [sc]) =
+  do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+         ctx' = ctx { hypotheticalContext =
+                        HasKind n TypeK : hypotheticalContext ctx
+                    }
+     k' <- goal (IsTypeJ ctx' a)
+     unless (k' == TypeK)
+       (failure
+          (ElabError
+            ("Kind of " ++ pretty a
+              ++ " should be (type) but is actually "
+              ++ prettyKind k')))
+     return TypeK
 isTypeJ ctx (CompT :$: [a]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      unless (k == TypeK)
@@ -679,6 +692,8 @@ isTypeValueJ (FunT :$: [a,b]) =
 isTypeValueJ (ConT _ :$: as) =
   forM_ as $ \a ->
     goal (IsTypeValueJ (instantiate0 a))
+isTypeValueJ (FixT :$: [_]) =
+  return ()
 isTypeValueJ (CompT :$: [a]) =
   goal (IsTypeValueJ (instantiate0 a))
 isTypeValueJ (LamT _ :$: [_]) =
@@ -709,6 +724,8 @@ isTermValueJ (Lam :$: [_]) =
 isTermValueJ (Con _ :$: ms) =
   forM_ ms $ \m ->
     goal (IsTermValueJ (instantiate0 m))
+isTermValueJ (Wrap :$: [_]) =
+  return ()
 isTermValueJ (Success :$: [m]) =
   goal (IsTermValueJ (instantiate0 m))
 isTermValueJ (Failure :$: []) =
@@ -783,6 +800,11 @@ checkJ ctx t (Case :$: (m:clsscs)) =
            (ElabError
              ("Cannot case on non-constructed data `"
                ++ pretty (instantiate0 m) ++ "a"))
+checkJ ctx a@(FixT :$: [sc]) (Wrap :$: [m]) =
+  let b = instantiate sc [a]
+      tenv = nominalContextToTypeEnv ctx
+      normal_b = evaluateType tenv b
+  in goal (CheckJ ctx normal_b (instantiate0 m))
 checkJ ctx (CompT :$: [a]) (Success :$: [m]) =
   goal (CheckJ ctx (instantiate0 a) (instantiate0 m))
 checkJ _ (CompT :$: [_]) (Failure :$: []) =
@@ -860,6 +882,18 @@ synthJ ctx (App :$: [m,n]) =
               (ElabError
                 ("Cannot apply the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-function type `" ++ pretty a ++ "`"))
+synthJ ctx (Unwrap :$: [m]) =
+  do a <- goal (SynthJ ctx (instantiate0 m))
+     case a of
+       FixT :$: [sc] ->
+         let b = instantiate sc [a]
+             tenv = nominalContextToTypeEnv ctx
+             normal_b = evaluateType tenv b
+         in return normal_b
+       _ -> failure
+               (ElabError
+                 ("Cannot unwrap the term `" ++ pretty (instantiate0 m)
+                   ++ "` which has non-fixed-point type `" ++ pretty a ++ "`"))
 synthJ _ (CompBuiltin n :$: []) =
   do t <- synthCompBuiltin n
      return (compTH t)

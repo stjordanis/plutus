@@ -33,6 +33,8 @@ data CKFrame = InIsaL Term
              | InAppRight Term
              | InCon String [Term] [Term]
              | InCase [Clause]
+             | InWrap
+             | InUnwrap
              | InSuccess
              | InBind (Scope PlutusSig)
              | InBuiltin String [Term] [Term]
@@ -82,6 +84,10 @@ rec petrol bci denv stk (Con c :$: (m:ms)) =
   rec (petrol - 1) bci denv (InCon c [] (map instantiate0 ms) : stk) (instantiate0 m)
 rec petrol bci denv stk (Case :$: (m:cs)) =
   rec (petrol - 1) bci denv (InCase (map instantiate0 cs) : stk) (instantiate0 m)
+rec petrol bci denv stk (Wrap :$: [m]) =
+  rec (petrol - 1) bci denv (InWrap : stk) (instantiate0 m)
+rec petrol bci denv stk (Unwrap :$: [m]) =
+  rec (petrol - 1) bci denv (InUnwrap : stk) (instantiate0 m)
 rec petrol bci denv stk (Success :$: [m]) =
   rec (petrol - 1) bci denv (InSuccess : stk) (instantiate0 m)
 rec petrol bci denv stk m@(Failure :$: []) =
@@ -110,6 +116,8 @@ rec petrol bci denv stk (ConT c :$: []) =
   ret (petrol - 1) bci denv stk (ConT c :$: [])
 rec petrol bci denv stk (ConT c :$: (a:as)) =
   rec (petrol - 1) bci denv (InConT c [] (map instantiate0 as) : stk) (instantiate0 a)
+rec petrol bci denv stk a@(FixT :$: [_]) =
+  ret (petrol - 1) bci denv stk a
 rec petrol bci denv stk (CompT :$: [a]) =
   rec (petrol - 1) bci denv (InCompT : stk) (instantiate0 a)
 rec petrol bci denv stk (ForallT k :$: [sc]) =
@@ -171,6 +179,12 @@ ret petrol bci denv (InCase cs : stk) m =
              ++ pretty (Case :$: map (scope []) (m:cs)))
     Just m'  ->
       rec (petrol - 1) bci denv stk m'
+ret petrol bci denv (InWrap : stk) m =
+  ret (petrol - 1) bci denv stk (wrapH m)
+ret petrol bci denv (InUnwrap : stk) m =
+  case m of
+    Wrap :$: [m'] -> ret (petrol - 1) bci denv stk (instantiate0 m')
+    _ -> ret (petrol - 1) bci denv stk (unwrapH m)
 ret petrol bci denv (InSuccess : stk) m =
   ret (petrol - 1) bci denv stk (successH m)
 ret petrol bci denv (InBind sc : stk) m =

@@ -68,6 +68,8 @@ data PlutusSig
   | App
   | Con String
   | Case
+  | Wrap
+  | Unwrap
   | Success
   | Failure
   | CompBuiltin String
@@ -84,6 +86,7 @@ data PlutusSig
   | ConT String
   | CompT
   | ForallT Kind
+  | FixT
   | IntegerT
   | FloatT
   | ByteStringT
@@ -113,6 +116,7 @@ isType (c :$: _) = case c of
   ConT _ -> True
   CompT -> True
   ForallT _ -> True
+  FixT -> True
   IntegerT -> True
   FloatT -> True
   ByteStringT -> True
@@ -160,6 +164,12 @@ caseH a cs = Case :$: map (scope []) (a : cs)
 clauseH :: String -> [String] -> Term -> Clause
 clauseH c vs b = Clause c :$: [scope vs b]
 
+wrapH :: Term -> Term
+wrapH m = Wrap :$: [scope [] m]
+
+unwrapH :: Term -> Term
+unwrapH m = Unwrap :$: [scope [] m]
+
 successH :: Term -> Term
 successH m = Success :$: [scope [] m]
 
@@ -195,6 +205,9 @@ compTH a = CompT :$: [scope [] a]
 
 forallTH :: String -> Kind -> Term -> Term
 forallTH x k a = ForallT k :$: [scope [x] a]
+
+fixTH :: String -> Term -> Term
+fixTH x a = FixT :$: [scope [x] a]
 
 byteStringTH :: Term
 byteStringTH = ByteStringT :$: []
@@ -270,6 +283,14 @@ instance Parens Term where
       ++ " "
       ++ unwords (map (parenthesize Nothing . instantiate0) cs)
       ++ ")"
+  parenRec (Wrap :$: [m]) =
+    "(wrap "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
+  parenRec (Unwrap :$: [m]) =
+    "(unwrap "
+      ++ parenthesize Nothing (instantiate0 m)
+      ++ ")"
   parenRec (Success :$: [m]) =
     "(success "
       ++ parenthesize Nothing (instantiate0 m)
@@ -318,6 +339,12 @@ instance Parens Term where
       ++ head (names sc)
       ++ " "
       ++ prettyKind k
+      ++ " "
+      ++ parenthesize Nothing (body sc)
+      ++ ")"
+  parenRec (FixT :$: [sc]) =
+    "(fix "
+      ++ head (names sc)
       ++ " "
       ++ parenthesize Nothing (body sc)
       ++ ")"
