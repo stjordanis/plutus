@@ -22,6 +22,7 @@ import Utils.Pretty
 import qualified Utils.ProofDeveloper as PD
 --import Utils.Unifier
 --import Utils.Vars
+import PlutusCore.ElabError
 import PlutusCore.LanguageOptions
 import PlutusCore.Program
 import PlutusCore.Term
@@ -41,7 +42,8 @@ import PlutusCore.Judgments
 
 
 
-newtype ElabError = ElabError String
+
+
 
 type Decomposer = PD.Decomposer LanguageOptions ElabError Judgment
 
@@ -60,9 +62,9 @@ runElaborator opts e =
 
 
 instance PD.ShowElabError LanguageOptions ElabError Judgment where
-  showElabError (PD.ElabError (ElabError err) _ ctx0 (PD.Any g0)) =
+  showElabError (PD.ElabError err _ ctx0 (PD.Any g0)) =
      "Could not prove " ++ prettyJudgment g0
-      ++ "\nError message: " ++ err
+      ++ "\nError message: " ++ prettyElabError err
       ++ "\nContext:" ++ go ctx0
     where
       go :: PD.Context (PD.Any Judgment) -> String

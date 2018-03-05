@@ -17,6 +17,7 @@ import Utils.Pretty
 import Utils.ProofDeveloper hiding (Decomposer,ElabError,Context)
 --import Utils.Unifier
 import Utils.Vars
+import PlutusCore.ElabError
 import PlutusCore.Evaluation
 import PlutusCore.LanguageOptions
 import PlutusCore.Term
@@ -95,9 +96,7 @@ freshTypeConstructor :: [Declaration] -> String -> Decomposer ()
 freshTypeConstructor ds n =
   unless (all freshInDeclaration ds)
     (failure
-      (ElabError
-        ("The data type " ++ n
-          ++ " has already been declared")))
+      (TypeConstructorAlreadyDeclared n))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (DataDeclaration c _ _) = n /= c
@@ -112,9 +111,7 @@ freshTypeName :: [Declaration] -> String -> Decomposer ()
 freshTypeName ds n =
   unless (all freshInDeclaration ds)
     (failure
-      (ElabError
-        ("The type name " ++ n
-          ++ " has already been declared")))
+      (TypeNameAlreadyDeclared n))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (TypeDeclaration n' _) = n /= n'
@@ -129,9 +126,7 @@ freshTermConstructor :: [Declaration] -> String -> Decomposer ()
 freshTermConstructor ds n =
   unless (all freshInDeclaration ds)
     (failure
-      (ElabError
-        ("The term constructor " ++ n
-          ++ " has already been declared")))
+      (TermConstructorAlreadyDeclared n))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (DataDeclaration _ _ alts) =
@@ -150,9 +145,7 @@ freshTermName :: [Declaration] -> String -> Decomposer ()
 freshTermName ds nm =
   unless (all freshInDeclaration ds)
     (failure
-      (ElabError
-        ("The term name " ++ nm
-          ++ " has already been declared")))
+      (TermNameAlreadyDeclared nm))
   where
     freshInDeclaration :: Declaration -> Bool
     freshInDeclaration (TermDeclaration nm' _) = nm /= nm'
@@ -167,9 +160,7 @@ undefinedTermName :: [Declaration] -> String -> Decomposer ()
 undefinedTermName ds n =
   unless (all undefinedInDeclaration ds)
     (failure
-      (ElabError
-        ("The term name " ++ n
-          ++ " has already been defined")))
+      (TermNameAlreadyDefined n))
   where
     undefinedInDeclaration :: Declaration -> Bool
     undefinedInDeclaration (TermDefinition n' _ ) = n /= n'
@@ -189,15 +180,11 @@ typeNameInContext ctx@(Context { nominalContext = ds })
   findInDeclarations ds
   
   where
-    findInDeclarations [] = err
+    findInDeclarations [] = failure (TypeNameNotInScope nm)
     findInDeclarations (TypeDeclaration nm' t:ds')
       | nm == nm' = goal (IsTypeJ ctx t)
       | otherwise = findInDeclarations ds'
     findInDeclarations (_:ds') = findInDeclarations ds'
-    
-    err = failure
-           (ElabError
-             ("Type name not in scope: " ++ nm))
 
 
 
@@ -210,16 +197,11 @@ typeConstructorInContext (Context { nominalContext = ds})
   findInDeclarations ds
   
   where
-    findInDeclarations [] = err
+    findInDeclarations [] = failure (TypeConstructorNotInScope nm)
     findInDeclarations (DataDeclaration nm' ksigs _:ds')
       | nm == nm' = return [ k | KindSig _ k <- ksigs ]
       | otherwise = findInDeclarations ds'
     findInDeclarations (_:ds') = findInDeclarations ds'
-    
-    err = failure
-           (ElabError
-             ("Type constructor not in scope: "
-               ++ nm))
 
 
 
@@ -232,7 +214,7 @@ termConstructorInContext (Context { nominalContext = ds })
   findInDeclarations ds
   
   where
-    findInDeclarations [] = err
+    findInDeclarations [] = failure (TermConstructorNotInScope nm)
     findInDeclarations (DataDeclaration nm' _ alts:ds') =
       case findAlt alts of
         Nothing -> findInDeclarations ds'
@@ -243,11 +225,6 @@ termConstructorInContext (Context { nominalContext = ds })
     findAlt (Alt nm' ascs:alts)
       | nm == nm' = Just ascs
       | otherwise = findAlt alts
-    
-    err = failure
-           (ElabError
-             ("Term constructor not in scope: "
-               ++ nm))
 
 
 
@@ -262,15 +239,11 @@ termNameInContext (Context { nominalContext = ds })
   findInDeclarations ds
   
   where
-    findInDeclarations [] = err
+    findInDeclarations [] = failure (TermNameNotInScope nm)
     findInDeclarations (TermDeclaration nm' tv:ds')
       | nm == nm' = return tv
       | otherwise = findInDeclarations ds'
     findInDeclarations (_:ds') = findInDeclarations ds'
-    
-    err = failure
-           (ElabError
-             ("Term name not in scope: " ++ nm))
 
 
 
@@ -280,7 +253,7 @@ termNameInContext (Context { nominalContext = ds })
 typeVariableInHypotheticalContext
   :: HypotheticalContext -> String -> Decomposer Kind
 typeVariableInHypotheticalContext [] y =
-  failure (ElabError ("Type variable not in scope: " ++ y))
+  failure (TypeVariableNotInScope y)
 typeVariableInHypotheticalContext (HasKind x k : _) y | x == y =
   return k
 typeVariableInHypotheticalContext (_ : hypctx) y =
@@ -294,7 +267,7 @@ typeVariableInHypotheticalContext (_ : hypctx) y =
 termVariableInHypotheticalContext
   :: HypotheticalContext -> String -> Decomposer Term
 termVariableInHypotheticalContext [] y =
-  failure (ElabError ("Term variable not in scope: " ++ y))
+  failure (TermVariableNotInScope y)
 termVariableInHypotheticalContext (HasType x u : _) y | x == y =
   return u
 termVariableInHypotheticalContext (_ : hypctx) y =
@@ -312,13 +285,7 @@ noRepeatedConstructors cls =
          uniqueCs = nub cs
          repeats = nub (cs \\ uniqueCs)
      unless (null repeats)
-       (failure
-         (ElabError
-           ("The constructors "
-             ++ unwords [ "`" ++ c ++ "`"
-                        | c <- repeats
-                        ]
-             ++ " occur in distinct clauses of a case term")))
+       (failure (RepeatedConstructorsInCase repeats))
 
 
 
@@ -333,13 +300,7 @@ coversAllConstructors ctx nm cls =
   do let cs = extractCons ctx
          missing = cs \\ [ c | Clause c :$: [_] <- cls ]
      unless (null missing)
-       (failure
-         (ElabError
-           ("The constructors "
-             ++ unwords [ "`" ++ c ++ "`"
-                        | c <- missing
-                        ]
-             ++ " are missing clauses in a case term")))
+       (failure (MissingConstructorsInCase missing))
   where
     extractCons (Context { nominalContext = ds }) =
       extractFromDeclarations ds
@@ -358,9 +319,7 @@ coversAllConstructors ctx nm cls =
 signatureOfBuiltin :: String -> Decomposer ([Term], Term)
 signatureOfBuiltin n =
   case lookup n builtinSigs of
-    Nothing ->
-      failure
-        (ElabError ("No builtin named `" ++ n ++ "`"))
+    Nothing -> failure (UnknownBuiltinName n)
     Just s -> return s
   where
     builtinSigs =
@@ -464,8 +423,7 @@ synthCompBuiltin "txhash" = return byteStringTH
 synthCompBuiltin "blocknum" = return integerTH
 synthCompBuiltin "blocktime" =
   return (conTH "DateTime" [])
-synthCompBuiltin n =
-  failure (ElabError ("Unknown computation builtin: " ++ n))
+synthCompBuiltin n = failure (UnknownCompBuiltinName n)
 
 
 
@@ -475,13 +433,8 @@ enforceLanguageOptionsUsesConstructors :: Decomposer ()
 enforceLanguageOptionsUsesConstructors =
   do LanguageOptions opts <- get
      if NoConstructors `elem` opts
-        then
-          failure
-            (ElabError
-              "Constructed data types are not supported with the current\
-              \ language options. Turn off `noConstructors` to enable them.")
-        else
-          return ()
+        then failure LanguageOptionNoConstructors
+        else return ()
 
 
 
@@ -489,13 +442,8 @@ enforceLanguageOptionsUsesFixedPointTypes :: Decomposer ()
 enforceLanguageOptionsUsesFixedPointTypes =
   do LanguageOptions opts <- get
      if FixedPointTypes `elem` opts
-        then
-          return ()
-        else
-          failure
-            (ElabError
-              "Fixed point types are not supported with the current language\
-              \ options. Turn on `fixedPointTypes` to enable them.")
+        then return ()
+        else failure LanguageOptionFixedPointTypes
 
 
 
@@ -532,12 +480,7 @@ declJ ds (TermDeclaration nm t) =
      k <- goal (IsTypeJ (Context ds []) t)
      case k of
        TypeK -> return ()
-       _ -> failure
-              (ElabError
-                ("The term name " ++ nm ++ " has been declared with the type "
-                  ++ pretty t ++ " which should have kind "
-                  ++ prettyKind TypeK ++ " but which actually has kind "
-                  ++ prettyKind k))
+       _ -> failure (TermDeclarationTypeIsNotType nm t k)
 declJ ds (TermDefinition nm v) =
   do undefinedTermName ds nm
      u <- termNameInContext
@@ -561,17 +504,13 @@ altJ ds (Alt cn ascs) ksigs =
      let hypctx = [ HasKind x k | KindSig x k <- ksigs ]
          xs =  [ Var (Free (FreeVar x)) | KindSig x _ <- ksigs ]
      forM_ ascs $ \asc ->
-       do k' <- goal
+       do let a = instantiate asc xs
+          k' <- goal
                   (IsTypeJ
                     (Context ds hypctx)
-                    (instantiate asc xs))
+                    a)
           unless (k' == TypeK)
-            (failure
-              (ElabError
-                ("Term constructors can only specify types for arguments but "
-                  ++ cn
-                  ++ " has been specified as having something of kind "
-                  ++ prettyKind k')))
+            (failure (TermConstructorArgumentKindIsNotType cn a k'))
           return ()
      return ()
 
@@ -585,49 +524,31 @@ isTypeJ :: Context -> Term -> Decomposer Kind
 isTypeJ ctx (Var (Free (FreeVar x))) =
   typeVariableInHypotheticalContext (hypotheticalContext ctx) x
 isTypeJ _ (Var (Bound _ _)) =
-  failure
-    (ElabError
-      ("Cannot synthesize the kind of a bound type variable."))
+  error "Cannot synth the kind of bound type variables. This should\
+        \ never be reachable."
 isTypeJ ctx (Decname n :$: []) =
   typeNameInContext ctx n
 isTypeJ ctx (FunT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      unless (k == TypeK)
-       (failure
-         (ElabError
-           ("Kind of " ++ pretty (instantiate0 a)
-             ++ " should be (type) but is actually "
-             ++ prettyKind k)))
+       (failure (FunTypeArgumentIsNotType (instantiate0 a) k))
      k' <- goal (IsTypeJ ctx (instantiate0 b))
      unless (k' == TypeK)
-       (failure
-         (ElabError
-           ("Kind of " ++ pretty (instantiate0 b)
-             ++ " should be (type) but is actually "
-             ++ prettyKind k')))
+       (failure (FunTypeReturnIsNotType (instantiate0 b) k'))
      return TypeK
 isTypeJ ctx (ConT c :$: as) =
   do enforceLanguageOptionsUsesConstructors
      ks <- typeConstructorInContext ctx c
      unless (length as == length ks)
        (failure
-         (ElabError
-           ("Type constructor `" ++ c
-             ++ "` expects " ++ show (length ks)
-             ++ " arguments but was given "
-             ++ show (length as))))
+         (TypeConstructorWrongNumberOfArguments c (length ks) (length as)))
      zipWithM_
        (\a k -> 
-         do k' <- goal (IsTypeJ ctx (instantiate0 a))
+         do let a0 = instantiate0 a
+            k' <- goal (IsTypeJ ctx a0)
             unless (k == k')
               (failure
-                (ElabError
-                  ("Type constructor `" ++ c
-                    ++ "` expects an argument of kind `"
-                    ++ prettyKind k
-                    ++ "` but was given an argument of kind `"
-                    ++ prettyKind k'
-                    ++ "`")))
+                (TypeConstructorWrongArgumentKind c a0 k k'))
             return ())
        as
        ks
@@ -640,20 +561,12 @@ isTypeJ ctx (FixT :$: [sc]) =
                     }
      k' <- goal (IsTypeJ ctx' a)
      unless (k' == TypeK)
-       (failure
-          (ElabError
-            ("Kind of " ++ pretty a
-              ++ " should be (type) but is actually "
-              ++ prettyKind k')))
+       (failure (FixBodyNotType a k'))
      return TypeK
 isTypeJ ctx (CompT :$: [a]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
      unless (k == TypeK)
-       (failure
-         (ElabError
-           ("Kind of " ++ pretty (instantiate0 a)
-             ++ " should be (type) but is actually "
-             ++ prettyKind k)))
+       (failure (CompArgumentNotType (instantiate0 a) k))
      return TypeK
 isTypeJ ctx (ForallT k :$: [sc]) =
   do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
@@ -662,11 +575,7 @@ isTypeJ ctx (ForallT k :$: [sc]) =
                     }
      k' <- goal (IsTypeJ ctx' a)
      unless (k' == TypeK)
-       (failure
-         (ElabError
-           ("Kind of " ++ pretty a
-             ++ " should be (type) but is actually "
-             ++ prettyKind k')))
+       (failure (ForallBodyNotType a k'))
      return TypeK
 isTypeJ _ (IntegerT :$: []) =
   return TypeK
@@ -688,23 +597,11 @@ isTypeJ ctx (AppT :$: [a,b]) =
          do k''' <- goal (IsTypeJ ctx (instantiate0 b))
             unless (k' == k''')
               (failure
-                (ElabError
-                  ("Kind of " ++ pretty (instantiate0 b)
-                    ++ " should be "
-                    ++ prettyKind k'
-                    ++ " but is actually "
-                    ++ prettyKind k''')))
+                (TypeApplicationArgumentKindMismatch (instantiate0 b) k' k'''))
             return k''
-       _ ->
-         failure
-           (ElabError
-             ("Kind of " ++ pretty (instantiate0 a)
-               ++ " should be a function but is actually "
-               ++ prettyKind k))
+       _ -> failure (TypeApplicationOfNonFunctionKind (instantiate0 a) k)
 isTypeJ _ m =
-  failure
-    (ElabError
-      ("Cannot synthesize the kind of non-type `" ++ pretty m ++ "`"))
+  failure (CannotSynthKindOfNonType m)
 
 
 
@@ -739,9 +636,7 @@ isTypeValueJ (FloatT :$: []) =
 isTypeValueJ (ByteStringT :$: []) =
   return ()
 isTypeValueJ a =
-  failure
-    (ElabError
-      ("The type `" ++ pretty a ++ "` is not a value"))
+  failure (TypeIsNotTypeValue a)
 
 
 
@@ -769,9 +664,7 @@ isTermValueJ (CompBuiltin _ :$: []) =
 isTermValueJ (Bind :$: [m,_]) =
   goal (IsTermValueJ (instantiate0 m))
 isTermValueJ m =
-  failure
-    (ElabError
-      ("The term `" ++ pretty m ++ "` is not a value"))
+  failure (TermIsNotTermValue m)
 
 
 
@@ -798,21 +691,10 @@ checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
   do enforceLanguageOptionsUsesConstructors
      (bscs, tc) <- termConstructorInContext ctx c'
      unless (tc == c)
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c'
-             ++ "` constructs a term in the type `"
-             ++ tc
-             ++ "` but is being checked against `"
-             ++ c)))
+       (failure (TermConstructorCheckedAtWrongType c' tc c))
      unless (length bscs == length ms)
        (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c'
-             ++ "` expects " ++ show (length bscs)
-             ++ " arguments but was given " ++ show (length ms))))
+         (TermConstructorWrongNumberOfArguments c' (length bscs) (length ms)))
      let as' = map instantiate0 as
          bs = map (\bsc -> instantiate bsc as') bscs
          tenv = nominalContextToTypeEnv ctx
@@ -832,10 +714,7 @@ checkJ ctx t (Case :$: (m:clsscs)) =
             forM_ cls $ \cl ->
               goal (ClauseJ ctx tc normal_bs t cl)
        _ ->
-         failure
-           (ElabError
-             ("Cannot case on non-constructed data `"
-               ++ pretty (instantiate0 m) ++ "a"))
+         failure (CaseScrutineeNotConstructedData (instantiate0 m) a)
 checkJ ctx a@(FixT :$: [sc]) (Wrap :$: [m]) =
   do enforceLanguageOptionsUsesFixedPointTypes
      let b = instantiate sc [a]
@@ -856,13 +735,9 @@ checkJ ctx a m =
          goal (EqualJ ctx normal_a normal_a')
          return ()
     (True,False) ->
-      failure
-        (ElabError
-          ("Cannot check the type of a type: `" ++ pretty m ++ "`"))
+      error "Cannot check the type of a type. This should never happen."
     (False,_) ->
-      failure
-        (ElabError
-          ("Cannot check against a term: `" ++ pretty a ++ "`"))
+      error "Cannot check against a term. This should never happen."
 
 
 
@@ -876,9 +751,8 @@ synthJ ctx (Var (Free (FreeVar x))) =
          normal_t = evaluateType tenv t
      return normal_t
 synthJ _ (Var (Bound _ _)) =
-  failure
-    (ElabError
-      ("Cannot synthesize the type of a bound term variable."))
+  error "Cannot synth the type of a bound term variable. This\
+        \ should never be reachable."
 synthJ ctx (Decname n :$: []) =
   do t <- termNameInContext ctx n
      let tenv = nominalContextToTypeEnv ctx
@@ -895,18 +769,10 @@ synthJ ctx (Inst :$: [m,a]) =
        ForallT k :$: [sc] ->
          do k' <- goal (IsTypeJ ctx (instantiate0 a))
             unless (k == k')
-              (failure
-                (ElabError
-                  ("Term `" ++ pretty (instantiate0 m)
-                    ++ "` expects a type of kind `"
-                    ++ prettyKind k ++ "` but was given one of kind `"
-                    ++ prettyKind k')))
+              (failure (InstantiationAtWrongKind (instantiate0 m) (instantiate0 a) k k'))
             let tenv = nominalContextToTypeEnv ctx
             return (evaluateType tenv (instantiate sc [instantiate0 a]))
-       _ -> failure
-              (ElabError
-                ("Cannot instantiate the term `" ++ pretty (instantiate0 m)
-                  ++ "` which has non-quantified type `" ++ pretty b ++ "`"))
+       _ -> failure (InstantiationOfNonForallType (instantiate0 m) b)
 synthJ ctx (App :$: [m,n]) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
@@ -915,10 +781,7 @@ synthJ ctx (App :$: [m,n]) =
                 normal_b = evaluateType tenv (instantiate0 b)
             goal (CheckJ ctx normal_b (instantiate0 n))
             return (instantiate0 c)
-       _ -> failure
-              (ElabError
-                ("Cannot apply the term `" ++ pretty (instantiate0 m)
-                  ++ "` which has non-function type `" ++ pretty a ++ "`"))
+       _ -> failure (ApplicationOfNonFunctionType (instantiate0 m) a)
 synthJ ctx (Unwrap :$: [m]) =
   do enforceLanguageOptionsUsesFixedPointTypes
      a <- goal (SynthJ ctx (instantiate0 m))
@@ -928,10 +791,7 @@ synthJ ctx (Unwrap :$: [m]) =
              tenv = nominalContextToTypeEnv ctx
              normal_b = evaluateType tenv b
          in return normal_b
-       _ -> failure
-               (ElabError
-                 ("Cannot unwrap the term `" ++ pretty (instantiate0 m)
-                   ++ "` which has non-fixed-point type `" ++ pretty a ++ "`"))
+       _ -> failure (CannotUnwrapNonFixedPointType (instantiate0 m) a)
 synthJ _ (CompBuiltin n :$: []) =
   do t <- synthCompBuiltin n
      return (compTH t)
@@ -946,17 +806,10 @@ synthJ ctx m0@(Bind :$: [m,sc]) =
                            }
             c <- goal (SynthJ ctx' m')
             case c of
-              CompT :$: [_] ->
-                return c
-              _ -> failure
-                     (ElabError
-                       ("The term `" ++ pretty m0 ++ "` should have a clause"
-                         ++ " that returns a computation type but instead"
-                         ++ " has one that returns `" ++ pretty c ++ "`"))
+              CompT :$: [_] -> return c
+              _ -> failure (BindBodyNotCompType m0 c)
        _ -> failure
-              (ElabError
-                ("Cannot bind the term `" ++ pretty (instantiate0 m)
-                  ++ "` which has non-computation type `" ++ pretty a ++ "`"))
+              (BindArgumentNotCompType (instantiate0 m) a)
 synthJ _ (PrimInteger _ :$: []) =
   return integerTH
 synthJ _ (PrimFloat _ :$: []) =
@@ -966,19 +819,14 @@ synthJ _ (PrimByteString _ :$: []) =
 synthJ ctx (Builtin n :$: ms) =
   do (as,b) <- signatureOfBuiltin n
      unless (length as == length ms)
-       (failure
-         (ElabError
-           ("Builtin `" ++ n ++ "` expects " ++ show (length as)
-             ++ " arguments but was given " ++ show (length ms))))
+       (failure (BuiltinWrongNumberOfArguments n (length as) (length ms)))
      let tenv = nominalContextToTypeEnv ctx
          normal_as = map (evaluateType tenv) as
      forM_ (zip normal_as ms) $ \(a,m) ->
        goal (CheckJ ctx a (instantiate0 m))
      return b
-synthJ _ a =
-  failure
-    (ElabError
-      ("Cannot synthesize the type of `" ++ pretty a ++ "`"))
+synthJ _ m =
+  failure (CannotSynthType m)
 
 
 
@@ -995,21 +843,10 @@ clauseJ
 clauseJ ctx tc as t (Clause c :$: [sc]) =
   do (bscs, tc') <- termConstructorInContext ctx c
      unless (tc == tc')
-       (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c
-             ++ "` constructs a term in the type `"
-             ++ tc
-             ++ "` but is being checked against `"
-             ++ tc')))
+       (failure (ClauseConstructorWrongType c tc tc'))
      unless (length bscs == length (names sc))
        (failure
-         (ElabError
-           ("Term constructor `"
-             ++ c
-             ++ "` expects " ++ show (length bscs)
-             ++ " arguments but was given " ++ show (length (names sc)))))
+         (ClauseConstructorWrongNumberOfArguments c (length bscs) (length (names sc))))
      let (_, ns, m) = openScope (hypotheticalContext ctx) sc
          bs = map (\bsc -> instantiate bsc as) bscs
          tenv = nominalContextToTypeEnv ctx
@@ -1031,22 +868,10 @@ equalJ :: Context -> Term -> Term -> Decomposer ()
 equalJ _ (Var x) (Var y) =
   if x == y
     then return ()
-    else failure
-           (ElabError
-             ("Variables not equal: `"
-               ++ name x
-               ++ "` and `"
-               ++ name y
-               ++ "`"))
+    else failure (VariablesNotEqual x y)
 equalJ ctx@(Context nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
   if c /= c'
-  then failure
-         (ElabError
-           ("Terms not equal: `"
-             ++ pretty m0
-             ++ "` and `"
-             ++ pretty m0'
-             ++ "`"))
+  then failure (TermsNotEqual m0 m0')
   else forM_ (zip scs scs') $ \(sc,sc') ->
          do let (xs, ns, m) = openScope (hypotheticalContext ctx) sc
                 m' = instantiate sc' (map (Var . Free) xs)
@@ -1059,9 +884,7 @@ equalJ ctx@(Context nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
                            }
             goal (EqualJ ctx' normal_m normal_m')
 equalJ _ m m' =
-  failure
-    (ElabError
-      ("Terms not equal: `" ++ pretty m ++ "` and `" ++ pretty m' ++ "`"))
+  failure (TermsNotEqual m m')
 
 
 
