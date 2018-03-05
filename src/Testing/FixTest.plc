@@ -1,0 +1,53 @@
+(language
+  fixedPointTypes
+  noConstructors)
+
+(program
+  
+  (data Maybe ((a (type)))
+    (Nothing)
+    (Just a))
+  
+  (type unit
+    (forall a (type) (fun a a)))
+  
+  (declare mkUnit unit)
+  (define mkUnit
+    (abs a (lam x x)))
+  
+  (type list
+    (lam a (type)
+      (fix r
+        (forall c (type)
+          (fun (fun unit c)
+            (fun (fun a (fun r c))
+                 c))))))
+  
+  (declare nil
+    (forall a (type) [list a]))
+  (define nil
+    (abs a (wrap (abs c (lam nl (lam cns [nl mkUnit]))))))
+  
+  (declare cons
+    (forall a (type) (fun a (fun [list a] [list a]))))
+  (define cons
+    (abs a (lam x (lam xs
+      (wrap (abs c (lam nl (lam cns [cns x xs]))))))))
+  
+  (declare map
+    (forall a (type)
+      (forall b (type)
+        (fun (fun a b)
+          (fun [list a] [list b])))))
+  (define map
+    (abs a (abs b (lam f (lam xs
+      [(inst (unwrap xs) [list b])
+        (lam u (inst nil b))
+        (lam x (lam xs
+          [(inst cons b)
+             [f x]
+             [(inst (inst map a) b)
+               f
+               xs]]))])))))
+  
+  )

@@ -12,6 +12,7 @@
 
 module PlutusCore.Parser where
 
+import PlutusCore.LanguageOptions
 import PlutusCore.Program
 import PlutusCore.Term
 import Utils.ABT
@@ -50,6 +51,7 @@ languageDef = Token.LanguageDef
                     ,"primInt","primFloat","primByteString","builtin"
                     ,"isFun","isCon","isConName","isInt","isFloat","isByteString"
                     ,"program","module","exp","loc","expcon","loccon"
+                    , "no-constructors", "fixed-point-types"
                     ]
                 , Token.reservedOpNames = []
                 , Token.caseSensitive = True
@@ -607,14 +609,40 @@ termDefinition =
 
 
 
+languageOptions :: Parsec String u LanguageOptions
+languageOptions =
+  construct "language" $ do
+    opts <- many1 opt
+    return (LanguageOptions opts)
+  where
+    opt = noConstructors
+      <|> fixedPointTypes
+    
+    noConstructors =
+      do reserved "noConstructors"
+         return NoConstructors
+    
+    fixedPointTypes =
+      do reserved "fixedPointTypes"
+         return FixedPointTypes
+
+programWithOptions :: Parsec String u (LanguageOptions, Program)
+programWithOptions =
+  do mopts <- optionMaybe languageOptions
+     prog <- program
+     return (maybe (LanguageOptions []) id mopts, prog)
+
+
+
+
 parseExactly :: (forall u. Parsec String u a) -> String -> Either String a
 parseExactly p str =
   case parse (whiteSpace *> p <* eof) "(unknown)" str of
     Left e -> Left (show e)
     Right x -> Right x
 
-parseProgram :: String -> Either String Program
-parseProgram = parseExactly program
+parseProgramWithOptions :: String -> Either String (LanguageOptions, Program)
+parseProgramWithOptions = parseExactly programWithOptions
 
 parseTerm :: String -> Either String Term
 parseTerm = parseExactly term

@@ -18,6 +18,7 @@ import Utils.ProofDeveloper hiding (Decomposer,ElabError,Context)
 --import Utils.Unifier
 import Utils.Vars
 import PlutusCore.Evaluation
+import PlutusCore.LanguageOptions
 import PlutusCore.Term
 import PlutusCore.Program
 import PlutusCore.Contexts
@@ -26,7 +27,7 @@ import PlutusCore.Judgments
 import PlutusCore.EvaluatorTypes
 
 import Control.Monad.Except
---import Control.Monad.State
+import Control.Monad.State
 --import Data.Functor.Identity
 import Data.List
 --import Data.Maybe (isJust)
@@ -39,7 +40,7 @@ import Data.List
 
 
 
-instance Decomposable () ElabError Judgment where
+instance Decomposable LanguageOptions ElabError Judgment where
   decompose (ElabProgramJ prog) = programJ prog
   decompose (ElabDeclJ nomctx decl) =
     declJ nomctx decl
@@ -53,7 +54,6 @@ instance Decomposable () ElabError Judgment where
   decompose (ClauseJ ctx tc as t cl) = clauseJ ctx tc as t cl
   decompose (EqualJ ctx a b) = equalJ ctx a b
   decompose (EqualAllJ ctx a bs) = equalAllJ ctx a bs
-
 
 
 
@@ -471,6 +471,33 @@ synthCompBuiltin n =
 
 
 
+enforceLanguageOptionsUsesConstructors :: Decomposer ()
+enforceLanguageOptionsUsesConstructors =
+  do LanguageOptions opts <- get
+     if NoConstructors `elem` opts
+        then
+          failure
+            (ElabError
+              "Constructed data types are not supported with the current\
+              \ language options. Turn off `noConstructors` to enable them.")
+        else
+          return ()
+
+
+
+enforceLanguageOptionsUsesFixedPointTypes :: Decomposer ()
+enforceLanguageOptionsUsesFixedPointTypes =
+  do LanguageOptions opts <- get
+     if FixedPointTypes `elem` opts
+        then
+          return ()
+        else
+          failure
+            (ElabError
+              "Fixed point types are not supported with the current language\
+              \ options. Turn on `fixedPointTypes` to enable them.")
+
+
 
 
 programJ :: Program -> Decomposer ()
@@ -487,7 +514,8 @@ declJ :: NominalContext
       -> Declaration
       -> Decomposer ()
 declJ ds (DataDeclaration tcn ksigs alts) =
-  do freshTypeConstructor ds tcn
+  do enforceLanguageOptionsUsesConstructors
+     freshTypeConstructor ds tcn
      let nomctxAddition = DataDeclaration tcn ksigs []
      forM_ alts $ \alt ->
        goal (ElabAltJ
@@ -579,7 +607,8 @@ isTypeJ ctx (FunT :$: [a,b]) =
              ++ prettyKind k')))
      return TypeK
 isTypeJ ctx (ConT c :$: as) =
-  do ks <- typeConstructorInContext ctx c
+  do enforceLanguageOptionsUsesConstructors
+     ks <- typeConstructorInContext ctx c
      unless (length as == length ks)
        (failure
          (ElabError
@@ -604,7 +633,8 @@ isTypeJ ctx (ConT c :$: as) =
        ks
      return TypeK
 isTypeJ ctx (FixT :$: [sc]) =
-  do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+  do enforceLanguageOptionsUsesFixedPointTypes
+     let (_, [n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n TypeK : hypotheticalContext ctx
                     }
@@ -690,10 +720,12 @@ isTypeValueJ (FunT :$: [a,b]) =
   do goal (IsTypeValueJ (instantiate0 a))
      goal (IsTypeValueJ (instantiate0 b))
 isTypeValueJ (ConT _ :$: as) =
-  forM_ as $ \a ->
-    goal (IsTypeValueJ (instantiate0 a))
+  do enforceLanguageOptionsUsesConstructors
+     forM_ as $ \a ->
+       goal (IsTypeValueJ (instantiate0 a))
 isTypeValueJ (FixT :$: [_]) =
-  return ()
+  do enforceLanguageOptionsUsesFixedPointTypes
+     return ()
 isTypeValueJ (CompT :$: [a]) =
   goal (IsTypeValueJ (instantiate0 a))
 isTypeValueJ (LamT _ :$: [_]) =
@@ -722,10 +754,12 @@ isTermValueJ (Abst :$: [_]) =
 isTermValueJ (Lam :$: [_]) =
   return ()
 isTermValueJ (Con _ :$: ms) =
-  forM_ ms $ \m ->
-    goal (IsTermValueJ (instantiate0 m))
+  do enforceLanguageOptionsUsesConstructors
+     forM_ ms $ \m ->
+       goal (IsTermValueJ (instantiate0 m))
 isTermValueJ (Wrap :$: [_]) =
-  return ()
+  do enforceLanguageOptionsUsesFixedPointTypes
+     return ()
 isTermValueJ (Success :$: [m]) =
   goal (IsTermValueJ (instantiate0 m))
 isTermValueJ (Failure :$: []) =
@@ -761,7 +795,8 @@ checkJ ctx (FunT :$: [a,b]) (Lam :$: [sc']) =
                     }
      goal (CheckJ ctx' (instantiate0 b) m)
 checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
-  do (bscs, tc) <- termConstructorInContext ctx c'
+  do enforceLanguageOptionsUsesConstructors
+     (bscs, tc) <- termConstructorInContext ctx c'
      unless (tc == c)
        (failure
          (ElabError
@@ -785,7 +820,8 @@ checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
      forM_ (zip normal_bs ms) $ \(b,m) ->
        goal (CheckJ ctx b (instantiate0 m))
 checkJ ctx t (Case :$: (m:clsscs)) =
-  do a <- goal (SynthJ ctx (instantiate0 m))
+  do enforceLanguageOptionsUsesConstructors
+     a <- goal (SynthJ ctx (instantiate0 m))
      case a of
        ConT tc :$: bs ->
          do let cls = map instantiate0 clsscs
@@ -801,10 +837,11 @@ checkJ ctx t (Case :$: (m:clsscs)) =
              ("Cannot case on non-constructed data `"
                ++ pretty (instantiate0 m) ++ "a"))
 checkJ ctx a@(FixT :$: [sc]) (Wrap :$: [m]) =
-  let b = instantiate sc [a]
-      tenv = nominalContextToTypeEnv ctx
-      normal_b = evaluateType tenv b
-  in goal (CheckJ ctx normal_b (instantiate0 m))
+  do enforceLanguageOptionsUsesFixedPointTypes
+     let b = instantiate sc [a]
+         tenv = nominalContextToTypeEnv ctx
+         normal_b = evaluateType tenv b
+     goal (CheckJ ctx normal_b (instantiate0 m))
 checkJ ctx (CompT :$: [a]) (Success :$: [m]) =
   goal (CheckJ ctx (instantiate0 a) (instantiate0 m))
 checkJ _ (CompT :$: [_]) (Failure :$: []) =
@@ -883,7 +920,8 @@ synthJ ctx (App :$: [m,n]) =
                 ("Cannot apply the term `" ++ pretty (instantiate0 m)
                   ++ "` which has non-function type `" ++ pretty a ++ "`"))
 synthJ ctx (Unwrap :$: [m]) =
-  do a <- goal (SynthJ ctx (instantiate0 m))
+  do enforceLanguageOptionsUsesFixedPointTypes
+     a <- goal (SynthJ ctx (instantiate0 m))
      case a of
        FixT :$: [sc] ->
          let b = instantiate sc [a]

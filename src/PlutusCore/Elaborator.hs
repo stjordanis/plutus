@@ -22,6 +22,7 @@ import Utils.Pretty
 import qualified Utils.ProofDeveloper as PD
 --import Utils.Unifier
 --import Utils.Vars
+import PlutusCore.LanguageOptions
 import PlutusCore.Program
 import PlutusCore.Term
 import PlutusCore.Judgments
@@ -42,22 +43,23 @@ import PlutusCore.Judgments
 
 newtype ElabError = ElabError String
 
-type Decomposer = PD.Decomposer () ElabError Judgment
+type Decomposer = PD.Decomposer LanguageOptions ElabError Judgment
 
-type Elaborator = PD.Elaborator () ElabError Judgment
+type Elaborator = PD.Elaborator LanguageOptions ElabError Judgment
 
 type TypeChecker = Elaborator
 
-runElaborator :: Elaborator a
-              -> Either (PD.ElabError () ElabError Judgment)
+runElaborator :: LanguageOptions
+              -> Elaborator a
+              -> Either (PD.ElabError LanguageOptions ElabError Judgment)
                         a
-runElaborator e =
-  fst <$> (PD.runElaborator e [] ())
+runElaborator opts e =
+  fst <$> (PD.runElaborator e [] opts)
 
 
 
 
-instance PD.ShowElabError () ElabError Judgment where
+instance PD.ShowElabError LanguageOptions ElabError Judgment where
   showElabError (PD.ElabError (ElabError err) _ ctx0 (PD.Any g0)) =
      "Could not prove " ++ prettyJudgment g0
       ++ "\nError message: " ++ err
@@ -124,5 +126,5 @@ instance PD.ShowElabError () ElabError Judgment where
         ++ "`"
 
 
-instance PD.Metas () Judgment where
+instance PD.Metas LanguageOptions Judgment where
   substitute _ j = j

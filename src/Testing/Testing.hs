@@ -14,6 +14,7 @@ import PlutusCore.Elaborator
 import PlutusCore.Evaluation
 import PlutusCore.EvaluatorTypes
 import PlutusCore.Judgments
+import PlutusCore.LanguageOptions
 import PlutusCore.Parser
 import PlutusCore.Program
 import PlutusCore.Term
@@ -51,20 +52,21 @@ readPrompt prompt = flushStr prompt >> getLine
 printError :: String -> IO ()
 printError e = flushLine ("ERROR: " ++ e)
 
-evalAndPrintTerm :: Program -> Environment -> Term -> IO ()
-evalAndPrintTerm (Program decls) env m =
+evalAndPrintTerm :: LanguageOptions -> Program -> Environment -> Term -> IO ()
+evalAndPrintTerm opts (Program decls) env m =
   case runElaborator
+         opts
          (PD.elaborator (SynthJ (Context decls []) m)) of
     Left e -> printError (PD.showElabError e)
     Right _ -> case evaluate undefined env 1000000 m of
       Left e' -> printError e'
       Right v -> flushLine (pretty v)
 
-evalAndPrint :: Program -> Environment -> String -> IO ()
-evalAndPrint prog env s =
+evalAndPrint :: LanguageOptions -> Program -> Environment -> String -> IO ()
+evalAndPrint opts prog env s =
   case parseTerm s of
     Left e -> printError e
-    Right m -> evalAndPrintTerm prog env (freeToDefined (\n -> Decname n :$: []) m)
+    Right m -> evalAndPrintTerm opts prog env (freeToDefined (\n -> Decname n :$: []) m)
 
 
 data PromptCommand = Quit
@@ -107,8 +109,8 @@ getDefinition prog s =
         Just m ->
           flushLine (pretty m)
 
-evalAndPrintPrefixedOnValue :: Program -> Environment -> String -> IO ()
-evalAndPrintPrefixedOnValue prog env s =
+evalAndPrintPrefixedOnValue :: LanguageOptions -> Program -> Environment -> String -> IO ()
+evalAndPrintPrefixedOnValue opts prog env s =
   case parseNamePrefixThenTerm s of
     Left e -> printError e
     Right (pre,m) ->
@@ -117,10 +119,10 @@ evalAndPrintPrefixedOnValue prog env s =
           flushLine ("There are no terms beginning `" ++ pre ++ "'")
         ns -> forM_ ns $ \n ->
           do flushStr ("Testing " ++ n ++ ": ")
-             evalAndPrintTerm prog env (appH (Decname n :$: []) m)
+             evalAndPrintTerm opts prog env (appH (Decname n :$: []) m)
 
-replLoop :: Program -> Environment -> IO ()
-replLoop prog env = hSetBuffering stdin LineBuffering >> continue
+replLoop :: LanguageOptions -> Program -> Environment -> IO ()
+replLoop opts prog env = hSetBuffering stdin LineBuffering >> continue
   where
     continue =
       do p <- readPrompt "PlutusCore> "
@@ -128,36 +130,44 @@ replLoop prog env = hSetBuffering stdin LineBuffering >> continue
            Quit -> flushLine "See you next time!"
            GetType s -> getType prog s >> continue
            GetDefinition s -> getDefinition prog s >> continue
-           Evaluate s -> evalAndPrint prog env s >> continue
-           EvaluatePrefix s -> evalAndPrintPrefixedOnValue prog env s >> continue
+           Evaluate s -> evalAndPrint opts prog env s >> continue
+           EvaluatePrefix s -> evalAndPrintPrefixedOnValue opts prog env s >> continue
 
 repl :: String -> IO ()
 repl src0 = case loadProgram src0 of
              Left e -> printError e
-             Right (prog,dctx) -> replLoop prog dctx
+             Right ((opts,prog),dctx) -> replLoop opts prog dctx
   where
     loadProgram
-      :: String -> Either String (Program, Environment)
+      :: String -> Either String ((LanguageOptions, Program), Environment)
     loadProgram src =
-      do prog <- parseProgram src
+      do (opts,prog) <- parseProgramWithOptions src
          mapLeft PD.showElabError
            (runElaborator
+             opts
              (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
-         return (prog, extractDefinitions prog)
+         return ((opts,prog), extractDefinitions prog)
 
 replFiles :: [String] -> IO ()
 replFiles locs =
   do srcs <- mapM readFile locs
-     case mapM parseProgram srcs of
+     case mapM parseProgramWithOptions srcs of
        Left e -> printError e
-       Right progs ->
-         let prog0 = Program (progs >>= (\(Program mods) -> mods))
-         in case elabProgram prog0 of
-              Left e -> printError e
-              Right (prog,dctx) -> {-# SCC "replLoopProf" #-} replLoop prog dctx
+       Right optprogs ->
+         let (optss, progs) = unzip optprogs
+         in case optss of
+              opts:optss' | all (equivalent opts) optss' ->
+                let prog0 = Program (progs >>= (\(Program mods) -> mods))
+                in case elabProgram opts prog0 of
+                     Left e -> printError e
+                     Right (prog,dctx) -> {-# SCC "replLoopProf" #-} replLoop opts prog dctx
+              _ -> printError "Conflicting language options."
   where
-    elabProgram prog =
+    equivalent (LanguageOptions opts0) (LanguageOptions opts1) =
+      sort (nub opts0) == sort (nub opts1)
+    elabProgram opts prog =
       do mapLeft PD.showElabError
            (runElaborator
+             opts
              (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
          return (prog, extractDefinitions prog)
