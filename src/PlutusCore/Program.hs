@@ -49,6 +49,12 @@ data Declaration = DataDeclaration String [KindSig] [Alt]
                  | TermDeclaration String Term
                  | TermDefinition String Term
 
+declarationName :: Declaration -> String
+declarationName (DataDeclaration n _ _) = n
+declarationName (TypeDeclaration n _) = n
+declarationName (TermDeclaration n _) = n
+declarationName (TermDefinition n _) = n
+
 prettyDeclaration :: Declaration -> String
 prettyDeclaration (DataDeclaration c ks alts) =
   "(data "
@@ -133,3 +139,45 @@ namesWithNameAsPrefix (Program decls) n =
     namesWithNameAsPrefixDecl (TermDefinition n' _)
       | isPrefixOf n n' = [n']
     namesWithNameAsPrefixDecl _ = []
+
+
+
+
+
+
+data NameInfo = TypeConstructor String
+              | TypeName String
+              | TermConstructor String
+              | TermName String
+
+nameInfoName :: NameInfo -> String
+nameInfoName (TypeConstructor n) = n
+nameInfoName (TypeName n)        = n
+nameInfoName (TermConstructor n) = n
+nameInfoName (TermName n)        = n
+
+prettyNameInfo :: NameInfo -> String
+prettyNameInfo (TypeConstructor n) =
+  n ++ " (type constructor)"
+prettyNameInfo (TypeName n) =
+  n ++ " (type name)"
+prettyNameInfo (TermConstructor n) =
+  n ++ " (term constructor)"
+prettyNameInfo (TermName n) =
+  n ++ " (term name)"
+
+nameInfo :: Program -> [NameInfo]
+nameInfo (Program decls) =
+  do decl <- decls
+     case decl of
+       DataDeclaration n _ alts ->
+         TypeConstructor n :
+           [ TermConstructor n'
+           | Alt n' _ <- alts
+           ]
+       TypeDeclaration n _ ->
+         [TypeName n]
+       TermDeclaration n _ ->
+         [TermName n]
+       TermDefinition _ _ ->
+         []

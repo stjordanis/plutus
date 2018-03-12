@@ -635,23 +635,23 @@ programWithOptions =
 
 
 
-parseExactly :: (forall u. Parsec String u a) -> String -> Either String a
-parseExactly p str =
-  case parse (whiteSpace *> p <* eof) "(unknown)" str of
+parseExactly :: (forall u. Parsec String u a) -> String -> String -> Either String a
+parseExactly p loc str =
+  case parse (whiteSpace *> p <* eof) loc str of
     Left e -> Left (show e)
     Right x -> Right x
 
-parseProgramWithOptions :: String -> Either String (LanguageOptions, Program)
+parseProgramWithOptions :: String -> String -> Either String (LanguageOptions, Program)
 parseProgramWithOptions = parseExactly programWithOptions
 
-parseTerm :: String -> Either String Term
+parseTerm :: String -> String -> Either String Term
 parseTerm = parseExactly term
 
-parseName :: String -> Either String String
+parseName :: String -> String -> Either String String
 parseName = parseExactly declaredName
 
 parseNamePrefixThenTerm
-  :: String -> Either String (String,Term)
+  :: String -> String -> Either String (String,Term)
 parseNamePrefixThenTerm =
   parseExactly $
     do n <- declaredName
