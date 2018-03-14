@@ -86,8 +86,7 @@ executable plutus-core-repl
                        Utils.Vars
 
 library
-  exposed-modules:     Utils.Names,
-                       Utils.Vars,
+  exposed-modules:     Utils.Vars,
                        Utils.ABT,
                        Utils.ProofDeveloper,
                        PlutusCore.Term,
