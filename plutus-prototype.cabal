@@ -89,7 +89,6 @@ library
   exposed-modules:     Utils.Names,
                        Utils.Vars,
                        Utils.ABT,
-                       Utils.JSABT,
                        Utils.ProofDeveloper,
                        PlutusCore.Term,
                        PlutusCore.BuiltinEvaluation,
