@@ -14,7 +14,7 @@ import Utils.ABT
 --import Utils.Elaborator hiding (openScope)
 --import Utils.Names
 import Utils.Pretty
-import Utils.ProofDeveloper hiding (Decomposer,ElabError,Context)
+import Utils.ProofDeveloper
 --import Utils.Unifier
 import Utils.Vars
 import PlutusCore.ElabError
@@ -92,7 +92,7 @@ nominalContextToTypeEnv (Context { nominalContext = ds }) =
 
 
 
-freshTypeConstructor :: [Declaration] -> String -> Decomposer ()
+freshTypeConstructor :: [Declaration] -> String -> ElabDecomposer ()
 freshTypeConstructor ds n =
   unless (all freshInDeclaration ds)
     (failure
@@ -107,7 +107,7 @@ freshTypeConstructor ds n =
 
 
 
-freshTypeName :: [Declaration] -> String -> Decomposer ()
+freshTypeName :: [Declaration] -> String -> ElabDecomposer ()
 freshTypeName ds n =
   unless (all freshInDeclaration ds)
     (failure
@@ -122,7 +122,7 @@ freshTypeName ds n =
 
 
 
-freshTermConstructor :: [Declaration] -> String -> Decomposer ()
+freshTermConstructor :: [Declaration] -> String -> ElabDecomposer ()
 freshTermConstructor ds n =
   unless (all freshInDeclaration ds)
     (failure
@@ -141,7 +141,7 @@ freshTermConstructor ds n =
 
 
 
-freshTermName :: [Declaration] -> String -> Decomposer ()
+freshTermName :: [Declaration] -> String -> ElabDecomposer ()
 freshTermName ds nm =
   unless (all freshInDeclaration ds)
     (failure
@@ -156,7 +156,7 @@ freshTermName ds nm =
 
 
 
-undefinedTermName :: [Declaration] -> String -> Decomposer ()
+undefinedTermName :: [Declaration] -> String -> ElabDecomposer ()
 undefinedTermName ds n =
   unless (all undefinedInDeclaration ds)
     (failure
@@ -173,7 +173,7 @@ undefinedTermName ds n =
 
 
 typeNameInContext
-  :: Context -> String -> Decomposer Kind
+  :: Context -> String -> ElabDecomposer Kind
 typeNameInContext ctx@(Context { nominalContext = ds })
                   nm =
   
@@ -191,7 +191,7 @@ typeNameInContext ctx@(Context { nominalContext = ds })
 
 
 typeConstructorInContext
-  :: Context -> String -> Decomposer [Kind]
+  :: Context -> String -> ElabDecomposer [Kind]
 typeConstructorInContext (Context { nominalContext = ds})
                          nm =
   findInDeclarations ds
@@ -208,7 +208,7 @@ typeConstructorInContext (Context { nominalContext = ds})
 termConstructorInContext
   :: Context
   -> String
-  -> Decomposer ([Scope PlutusSig], String)
+  -> ElabDecomposer ([Scope PlutusSig], String)
 termConstructorInContext (Context { nominalContext = ds })
                          nm =
   findInDeclarations ds
@@ -232,7 +232,7 @@ termConstructorInContext (Context { nominalContext = ds })
 
 
 termNameInContext
-  :: Context -> String -> Decomposer Term
+  :: Context -> String -> ElabDecomposer Term
 termNameInContext (Context { nominalContext = ds })
                   nm =
   
@@ -251,7 +251,7 @@ termNameInContext (Context { nominalContext = ds })
 
 
 typeVariableInHypotheticalContext
-  :: HypotheticalContext -> String -> Decomposer Kind
+  :: HypotheticalContext -> String -> ElabDecomposer Kind
 typeVariableInHypotheticalContext [] y =
   failure (TypeVariableNotInScope y)
 typeVariableInHypotheticalContext (HasKind x k : _) y | x == y =
@@ -265,7 +265,7 @@ typeVariableInHypotheticalContext (_ : hypctx) y =
 
 
 termVariableInHypotheticalContext
-  :: HypotheticalContext -> String -> Decomposer Term
+  :: HypotheticalContext -> String -> ElabDecomposer Term
 termVariableInHypotheticalContext [] y =
   failure (TermVariableNotInScope y)
 termVariableInHypotheticalContext (HasType x u : _) y | x == y =
@@ -279,7 +279,7 @@ termVariableInHypotheticalContext (_ : hypctx) y =
 
 
 
-noRepeatedConstructors :: [Clause] -> Decomposer ()
+noRepeatedConstructors :: [Clause] -> ElabDecomposer ()
 noRepeatedConstructors cls =
   do let cs = [ c | Clause c :$: [_] <- cls ]
          uniqueCs = nub cs
@@ -295,7 +295,7 @@ noRepeatedConstructors cls =
 coversAllConstructors :: Context
                       -> String
                       -> [Clause]
-                      -> Decomposer ()
+                      -> ElabDecomposer ()
 coversAllConstructors ctx nm cls =
   do let cs = extractCons ctx
          missing = cs \\ [ c | Clause c :$: [_] <- cls ]
@@ -316,7 +316,7 @@ coversAllConstructors ctx nm cls =
 
 
 
-signatureOfBuiltin :: String -> Decomposer ([Term], Term)
+signatureOfBuiltin :: String -> ElabDecomposer ([Term], Term)
 signatureOfBuiltin n =
   case lookup n builtinSigs of
     Nothing -> failure (UnknownBuiltinName n)
@@ -418,7 +418,7 @@ signatureOfBuiltin n =
 
 
 
-synthCompBuiltin :: String -> Decomposer Term
+synthCompBuiltin :: String -> ElabDecomposer Term
 synthCompBuiltin "txhash" = return byteStringTH
 synthCompBuiltin "blocknum" = return integerTH
 synthCompBuiltin "blocktime" =
@@ -429,7 +429,7 @@ synthCompBuiltin n = failure (UnknownCompBuiltinName n)
 
 
 
-enforceLanguageOptionsUsesConstructors :: Decomposer ()
+enforceLanguageOptionsUsesConstructors :: ElabDecomposer ()
 enforceLanguageOptionsUsesConstructors =
   do LanguageOptions opts <- get
      if NoConstructors `elem` opts
@@ -438,7 +438,7 @@ enforceLanguageOptionsUsesConstructors =
 
 
 
-enforceLanguageOptionsUsesFixedPointTypes :: Decomposer ()
+enforceLanguageOptionsUsesFixedPointTypes :: ElabDecomposer ()
 enforceLanguageOptionsUsesFixedPointTypes =
   do LanguageOptions opts <- get
      if FixedPointTypes `elem` opts
@@ -448,7 +448,7 @@ enforceLanguageOptionsUsesFixedPointTypes =
 
 
 
-programJ :: Program -> Decomposer ()
+programJ :: Program -> ElabDecomposer ()
 programJ (Program decls) =
   forM_ (zip (inits decls) decls) $ \(ds, d) ->
     goal (ElabDeclJ ds d)
@@ -460,7 +460,7 @@ programJ (Program decls) =
 
 declJ :: NominalContext
       -> Declaration
-      -> Decomposer ()
+      -> ElabDecomposer ()
 declJ ds (DataDeclaration tcn ksigs alts) =
   do enforceLanguageOptionsUsesConstructors
      freshTypeConstructor ds tcn
@@ -498,7 +498,7 @@ declJ ds (TermDefinition nm v) =
 altJ :: NominalContext
      -> Alt
      -> [KindSig]
-     -> Decomposer ()
+     -> ElabDecomposer ()
 altJ ds (Alt cn ascs) ksigs =
   do freshTermConstructor ds cn
      let hypctx = [ HasKind x k | KindSig x k <- ksigs ]
@@ -520,7 +520,7 @@ altJ ds (Alt cn ascs) ksigs =
 
 
 
-isTypeJ :: Context -> Term -> Decomposer Kind
+isTypeJ :: Context -> Term -> ElabDecomposer Kind
 isTypeJ ctx (Var (Free (FreeVar x))) =
   typeVariableInHypotheticalContext (hypotheticalContext ctx) x
 isTypeJ _ (Var (Bound _ _)) =
@@ -608,7 +608,7 @@ isTypeJ _ m =
 
 
 
-isTypeValueJ :: Term -> Decomposer ()
+isTypeValueJ :: Term -> ElabDecomposer ()
 isTypeValueJ (Var _) =
   return ()
 isTypeValueJ (Decname _ :$: []) =
@@ -643,7 +643,7 @@ isTypeValueJ a =
 
 
 
-isTermValueJ :: Term -> Decomposer ()
+isTermValueJ :: Term -> ElabDecomposer ()
 isTermValueJ (Abst :$: [_]) =
   return ()
 isTermValueJ (Lam :$: [_]) =
@@ -671,7 +671,7 @@ isTermValueJ m =
 
 
 
-checkJ :: Context -> Term -> Term -> Decomposer ()
+checkJ :: Context -> Term -> Term -> ElabDecomposer ()
 checkJ ctx (ForallT k :$: [sc]) (Abst :$: [sc']) =
   do let ([x], [n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
@@ -744,7 +744,7 @@ checkJ ctx a m =
 
 
 
-synthJ :: Context -> Term -> Decomposer Term
+synthJ :: Context -> Term -> ElabDecomposer Term
 synthJ ctx (Var (Free (FreeVar x))) =
   do t <- termVariableInHypotheticalContext (hypotheticalContext ctx) x
      let tenv = nominalContextToTypeEnv ctx
@@ -839,7 +839,7 @@ clauseJ
   -> [Term]
   -> Term
   -> Clause
-  -> Decomposer ()
+  -> ElabDecomposer ()
 clauseJ ctx tc as t (Clause c :$: [sc]) =
   do (bscs, tc') <- termConstructorInContext ctx c
      unless (tc == tc')
@@ -864,7 +864,7 @@ clauseJ _ _ _ _ _ =
 
 
 
-equalJ :: Context -> Term -> Term -> Decomposer ()
+equalJ :: Context -> Term -> Term -> ElabDecomposer ()
 equalJ _ (Var x) (Var y) =
   if x == y
     then return ()
@@ -889,7 +889,7 @@ equalJ _ m m' =
 
 
 
-equalAllJ :: Context -> Term -> [Term] -> Decomposer ()
+equalAllJ :: Context -> Term -> [Term] -> ElabDecomposer ()
 equalAllJ _ _ [] = return ()
 equalAllJ ctx a (b:bs) =
   do goal (EqualJ ctx a b)

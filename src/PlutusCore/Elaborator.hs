@@ -19,7 +19,7 @@ import Utils.ABT
 --import Utils.Env
 --import Utils.Names
 import Utils.Pretty
-import qualified Utils.ProofDeveloper as PD
+import Utils.ProofDeveloper
 --import Utils.Unifier
 --import Utils.Vars
 import PlutusCore.ElabError
@@ -45,33 +45,33 @@ import PlutusCore.Judgments
 
 
 
-type Decomposer = PD.Decomposer LanguageOptions ElabError Judgment
+type ElabDecomposer = Decomposer LanguageOptions ElabError Judgment
 
-type Elaborator = PD.Elaborator LanguageOptions ElabError Judgment
+type Elaborator = ProofDeveloper LanguageOptions ElabError Judgment
 
 type TypeChecker = Elaborator
 
 runElaborator :: LanguageOptions
               -> Elaborator a
-              -> Either (PD.ElabError LanguageOptions ElabError Judgment)
+              -> Either (ProofError LanguageOptions ElabError Judgment)
                         a
 runElaborator opts e =
-  fst <$> (PD.runElaborator e [] opts)
+  fst <$> (runProofDeveloper e [] opts)
 
 
 
 
-instance PD.ShowElabError LanguageOptions ElabError Judgment where
-  showElabError (PD.ElabError err _ ctx0 (PD.Any g0)) =
+instance ShowProofError LanguageOptions ElabError Judgment where
+  showProofError (ProofError err _ ctx0 (Any g0)) =
      "Could not prove " ++ prettyJudgment g0
       ++ "\nError message: " ++ prettyElabError err
       ++ "\nContext:" ++ go ctx0
     where
-      go :: PD.Context (PD.Any Judgment) -> String
+      go :: ProofContext (Any Judgment) -> String
       go [] = ""
-      go ((_,PD.Any (ElabProgramJ _)):gs) =
+      go ((_,Any (ElabProgramJ _)):gs) =
         go gs
-      go ((i,PD.Any g):gs) =
+      go ((i,Any g):gs) =
         "\n\n  In subproblem " ++ show i ++ " of "
           ++ prettyJudgment g ++ go gs
       
@@ -128,5 +128,5 @@ instance PD.ShowElabError LanguageOptions ElabError Judgment where
         ++ "`"
 
 
-instance PD.Metas LanguageOptions Judgment where
+instance Metas LanguageOptions Judgment where
   substitute _ j = j

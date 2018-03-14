@@ -72,8 +72,8 @@ evalAndPrintTerm :: LanguageOptions -> Program -> Environment -> Term -> IO ()
 evalAndPrintTerm opts (Program decls) env m =
   case runElaborator
          opts
-         (PD.elaborator (SynthJ (Context decls []) m)) of
-    Left e -> printError (PD.showElabError e)
+         (PD.proofDeveloper (SynthJ (Context decls []) m)) of
+    Left e -> printError (PD.showProofError e)
     Right _ -> case evaluate undefined env 1000000 m of
       Left e' -> printError e'
       Right v -> flushLine (pretty v)
@@ -91,8 +91,8 @@ getType opts (Program decls) s =
     Right m ->
       case runElaborator
              opts
-             (PD.elaborator (SynthJ (Context decls []) m)) of
-        Left e -> printError (PD.showElabError e)
+             (PD.proofDeveloper (SynthJ (Context decls []) m)) of
+        Left e -> printError (PD.showProofError e)
         Right a -> flushLine (pretty a)
 
 findNearestNames :: String -> Program -> [NameInfo]
@@ -247,8 +247,8 @@ replFiles locs =
     equivalent (LanguageOptions opts0) (LanguageOptions opts1) =
       sort (nub opts0) == sort (nub opts1)
     elabProgram opts prog =
-      do mapLeft PD.showElabError
+      do mapLeft PD.showProofError
            (runElaborator
              opts
-             (PD.elaborator (ElabProgramJ prog) :: Elaborator ()))
+             (PD.proofDeveloper (ElabProgramJ prog) :: Elaborator ()))
          return (prog, extractDefinitions prog)         
