@@ -93,79 +93,7 @@ data Scope sig
 
 
 
-{-
 
-
--- * Translating ABTs between construction signatures
-
-
-
--- | When @f@ is a bifunctor, @ABT (f a)@ will be functorial in @a@. This lets
--- use use 'Scope' like we'd use 'Fix' — to define parameterized types such as
--- 'List' here:
---
--- @
---    data ListF a r = Nil | Cons a r
---    
---    type List a = Fix (ListF a)
--- @
---
--- and the result 'List' here is itself functorial. However, juggling the
--- relationships between 'Functor' and 'Bifunctor' to make this automatic
--- is tedious. We can define the derived map once and for all over 'Bifunctor'
--- without any concern for functor instances.
-
-translate :: Bifunctor f
-          => (forall r. f a r -> f b r)
-          -> ABT (f a) -> ABT (f b)
-translate _ (Var v) = Var v
-translate n (In x) = In (n (second (translateScope n) x))
-
-
--- | Similarly, we can translate a scope, by just propogating the translation.
-
-translateScope :: Bifunctor f
-               => (forall r. f a r -> f b r)
-               -> Scope (f a) -> Scope (f b)
-translateScope n (Scope ns fns x) = Scope ns fns (translate n x)
-
-
-
-
-
-
-
--- * Folds over ABTs
-
-
-
--- | ABTs can be folded over whenever their parameter is a functor.
-
-fold :: Functor f
-     => (Variable -> a)  -- ^ The action on variables.
-     -> (f a -> a)       -- ^ The action on recursive results.
-     -> (Int -> a -> a)  -- ^ The action on scopes. The argument is the number
-                         -- of variables bound by the scope.
-     -> ABT f -> a
-fold aVar _    _   (Var v) = aVar v
-fold aVar aRec aSc (In x)  = aRec (fmap (foldScope aVar aRec aSc) x)
-
-
--- | Scopes can also be folded over.
-
-foldScope :: Functor f
-          => (Variable -> a)  -- ^ The action on variables.
-          -> (f a -> a)       -- ^ The action on recursive results.
-          -> (Int -> a -> a)  -- ^ The action on scopes. The argument is the
-                              -- number of variables bound by the scope.
-          -> Scope f -> a
-foldScope aVar aRec aSc (Scope ns _ b) =
-  aSc (length ns) (fold aVar aRec aSc b)
-
-
-
-
--}
 
 
 -- * Free variables in an ABT
@@ -191,100 +119,7 @@ freeVarNames :: ABT sig -> [String]
 freeVarNames = map (\(FreeVar n) -> n) . freeVars
 
 
-{-
 
-
--- | The 'BinderNameSource' class captures the idea that some data constitutes
--- a source for names in binders. For instance, the raw name in a lambda
--- expression, or a pattern in a case expression, are both sources of names
--- for a binding construct. The fundamental characteristic of such things is
--- that they can have dummy variables which in concrete syntax are just
--- underscores, but which ought to be converted into fresh names before an
--- actual scope is formed. For example, @\_ -> M@ should become @\x -> M@ for
--- some @x@ that's not used in @M@. Or similarly, the clause @Foo _ _ -> M@
--- should become @Foo x x' -> M@ again where @x@ and @x'@ are not in @M@. The
--- 'BinderNameSource' class represents this functionality.
---
--- These tools should be used during parse time to ensure that the result of
--- parsing is always something sensible wrt dummy variables.
-
-class BinderNameSource a where
-  sourceNames :: a -> [String]
-  replaceDummies :: a -> [String] -> (a,[String])
-
-
-
-
-
--- | A 'BinderNameSource' can have its dummy variables swapped for fresh names
--- by getting its names, finding out how many dummies there are, generating
--- that many fresh names, and then replacing the dummies.
-
-dummiesToFreshNames :: BinderNameSource a => [String] -> a -> a
-dummiesToFreshNames ns x =
-  let varNames = sourceNames x
-      dummies = filter ("_"==) varNames
-      newNamesToFreshen = take (length dummies) (repeat "x")
-      freshNames = freshen ns newNamesToFreshen
-  in fst (replaceDummies x freshNames)
-
-
-
-
-
--- | A utility type to block generative instances.
-
-data BNSString = BNSString { unBNSString :: String }
-
-
-
-
-
--- | A string is a 'BinderNameSource' in a trivial way.
-
-instance BinderNameSource BNSString where
-  sourceNames (BNSString x) = [x]
-  replaceDummies (BNSString "_") (n:ns) = (BNSString n,ns)
-  replaceDummies x ns = (x,ns)
-
-
-
-
-
--- | A foldable traversable functor of 'BinderNameSource's is also a
--- 'BinderNameSource'.
-
-instance (Functor f, Foldable f, Traversable f, BinderNameSource a)
-      => BinderNameSource (f a) where
-  sourceNames xs = F.fold (fmap sourceNames xs)
-  replaceDummies xs ns =
-    runState (traverse (state . replaceDummies) xs) ns
-
-
-
-
-
--- | An 'ABT f' is a 'BinderNameSource' provided that 'f' is a foldable
--- traversable functor. Then the names are just the 'freeVars'.
-
-instance (Functor f, Foldable f, Traversable f)
-      => BinderNameSource (ABT f) where
-  sourceNames x = [ n | FreeVar n <- freeVars x ]
-  replaceDummies x0 ns0 = runState (go x0) ns0
-    where
-      go (Var (Free (FreeVar "_"))) =
-        do n <- nextItem
-           return (Var (Free (FreeVar n)))
-      go (Var v) = return (Var v)
-      go (In x) = In <$> traverse (underF go) x
-      
-      nextItem :: State [a] a
-      nextItem = state (\(a:as) -> (a,as))
-
-
-
-
--}
 
 
 
@@ -563,17 +398,12 @@ under :: (ABT sig -> ABT sig) -> Scope sig -> Scope sig
 under f (Scope ns fns b) = Scope ns fns (f b)
 
 
-{-
--- | A functor-lifted version of 'under'
-
-underF :: Functor m => (ABT f -> m (ABT f)) -> Scope f -> m (Scope f)
-underF f (Scope ns fns b) = Scope ns fns <$> f b
--}
 
 -- | A convenience function that makes it easier to do iterated binding.
 
 helperFold :: (a -> b -> b) -> [a] -> b -> b
 helperFold c xs n = foldr c n xs
+
 
 
 -- | It's desirable to distinguish between free variables and names for
@@ -665,61 +495,3 @@ instance Eq sig => Eq (ABT sig) where
 instance Eq sig => Eq (Scope sig) where
   Scope ns _ x == Scope ns' _ y =
     length ns == length ns' && x == y
-
-
-
-
-{-
-
-
--- * Zipping
-
-
-
--- | This class defines a generic notion of bifunctorial zipping.
-
-class Bizippable f where
-  bizip :: f a b -> f a' b' -> Maybe ( [(a,a')], [(b,b')] )
-
-
--- | For a bizppable @f@, we can zip an @ABT (f a)@ with an @ABT (f b)@ by
--- pairing up the @a@s and the @b@s, provided that the 'ABT' structure is
--- the same in both.
-
-zipABTF :: Bizippable f => ABT (f a) -> ABT (f b) -> Maybe [(a,b)]
-zipABTF (Var x) (Var y)
-  | x == y    = Just []
-  | otherwise = Nothing
-zipABTF (In x) (In y) =
-  do (zippedABs, zippedScope) <- bizip x y
-     zippedABss <- mapM (uncurry zipScopeF) zippedScope
-     return $ zippedABs ++ concat zippedABss
-zipABTF _ _ = Nothing
-
-
-zipScopeF :: Bizippable f => Scope (f a) -> Scope (f b) -> Maybe [(a,b)]
-zipScopeF (Scope ns _ x) (Scope ns' _ y)
-  | length ns == length ns' = zipABTF x y
-  | otherwise = Nothing
-
-
-
-
-
-
-
--- * Traversing
-
-
-
-bisequenceABTF :: (Applicative f, Bitraversable g)
-               => ABT (g (f a)) -> f (ABT (g a))
-bisequenceABTF (Var v) = pure (Var v)
-bisequenceABTF (In x) = In <$> bitraverse id bisequenceScopeF x
-
-
-bisequenceScopeF :: (Applicative f, Bitraversable g)
-                 => Scope (g (f a)) -> f (Scope (g a))
-bisequenceScopeF (Scope ns fns x) = Scope ns fns <$> bisequenceABTF x
-
--}
