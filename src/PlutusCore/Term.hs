@@ -20,7 +20,7 @@ module PlutusCore.Term where
 import Utils.ABT
 -- import Utils.Names
 import Utils.Pretty
--- import Utils.Vars
+import Utils.Vars
 
 -- import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS
