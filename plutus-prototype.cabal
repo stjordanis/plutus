@@ -110,7 +110,6 @@ library
                        PlutusCore.EvaluatorTypes,
                        PlutusCore.LanguageOptions,
                        PlutusShared.BoolToTerm,
-                       Utils.Elaborator,
                        Utils.Env,
                        Utils.Eval,
                        Utils.Pretty,
