@@ -9,7 +9,7 @@ import Utils.ABT
 import Utils.JSABT
 import Utils.Names
 import Utils.Pretty
-import qualified Utils.ProofDeveloper as PD
+import qualified Utils.ProofDev as PD
 import qualified PlutusCore.Term as Core
 import PlutusCore.Evaluation
 import PlutusCore.EvaluatorTypes

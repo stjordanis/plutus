@@ -8,7 +8,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Utils.ProofDeveloper where
+module Utils.ProofDev where
 
 import Control.Monad.Except
 import Control.Monad.Operational

@@ -20,7 +20,7 @@ import Utils.ABT
 import Utils.Env
 import Utils.JSABT
 import Utils.Names
-import qualified Utils.ProofDeveloper as PD
+import qualified Utils.ProofDev as PD
 
 import Data.Either.Combinators
 import Data.List (intercalate)

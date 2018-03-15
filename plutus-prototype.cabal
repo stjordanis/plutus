@@ -82,13 +82,13 @@ executable plutus-core-repl
                        Utils.ABT,
                        Utils.Env,
                        Utils.Pretty,
-                       Utils.ProofDeveloper,
+                       Utils.ProofDev,
                        Utils.Vars
 
 library
   exposed-modules:     Utils.Vars,
                        Utils.ABT,
-                       Utils.ProofDeveloper,
+                       Utils.ProofDev,
                        PlutusCore.Term,
                        PlutusCore.BuiltinEvaluation,
                        PlutusCore.PatternMatching,

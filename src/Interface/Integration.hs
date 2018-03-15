@@ -14,7 +14,7 @@ import Utils.ABT
 --import Utils.Elaborator
 import Utils.Env
 import Utils.Names
-import qualified Utils.ProofDeveloper as PD
+import qualified Utils.ProofDev as PD
 import Utils.Vars
 --import qualified Plutus.Program as Plutus
 import qualified PlutusCore.Evaluation as Core

@@ -20,7 +20,7 @@ import Utils.ABT
 import Utils.Elaborator
 import Utils.Names
 import Utils.Pretty
-import Utils.ProofDeveloper hiding (Decomposer,ElabError)
+import Utils.ProofDev hiding (Decomposer,ElabError)
 --import Utils.Unifier
 import Utils.Vars
 import Plutus.Term

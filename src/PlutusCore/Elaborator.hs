@@ -19,7 +19,7 @@ import Utils.ABT
 --import Utils.Env
 --import Utils.Names
 import Utils.Pretty
-import Utils.ProofDeveloper
+import Utils.ProofDev
 --import Utils.Unifier
 --import Utils.Vars
 import PlutusCore.ElabError

@@ -19,7 +19,7 @@ import Utils.ABT
 --import Utils.Env
 import Utils.Names
 import Utils.Pretty
-import qualified Utils.ProofDeveloper as PD
+import qualified Utils.ProofDev as PD
 --import Utils.Unifier
 import Utils.Vars
 import Plutus.Program

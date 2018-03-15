@@ -11,7 +11,7 @@
 module Elaboration.Judgments where
 
 import Utils.ABT
-import qualified Utils.ProofDeveloper as PD
+import qualified Utils.ProofDev as PD
 --import Utils.Vars
 import Elaboration.Contexts
 import Elaboration.ElabState
