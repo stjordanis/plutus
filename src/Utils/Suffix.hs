@@ -1,6 +1,6 @@
 {-# OPTIONS -Wall #-}
 
-module Utils.SuffixParser where
+module Utils.Suffix where
 
 import Text.Parsec
 

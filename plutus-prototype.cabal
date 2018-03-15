@@ -113,7 +113,7 @@ library
                        Utils.Env,
                        Utils.Eval,
                        Utils.Pretty,
-                       Utils.SuffixParser,
+                       Utils.Suffix,
                        Paths_plutus_prototype
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.10,

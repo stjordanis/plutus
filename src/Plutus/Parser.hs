@@ -23,7 +23,7 @@ module Plutus.Parser where
 
 import Utils.ABT hiding (bind)
 import Utils.Names
-import Utils.SuffixParser
+import Utils.Suffix
 import Utils.Vars
 import Plutus.Term
 import PlutusShared.ConSig
