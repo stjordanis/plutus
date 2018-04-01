@@ -609,11 +609,9 @@ termDefinition =
 
 
 
-languageOptions :: Parsec String u LanguageOptions
+languageOptions :: Parsec String u [LanguageOption]
 languageOptions =
-  construct "language" $ do
-    opts <- many1 opt
-    return (LanguageOptions opts)
+  construct "language" (many1 opt)
   where
     opt = noConstructors
       <|> fixedPointTypes
@@ -626,11 +624,11 @@ languageOptions =
       do reserved "fixedPointTypes"
          return FixedPointTypes
 
-programWithOptions :: Parsec String u (LanguageOptions, Program)
+programWithOptions :: Parsec String u ([LanguageOption], Program)
 programWithOptions =
   do mopts <- optionMaybe languageOptions
      prog <- program
-     return (maybe (LanguageOptions []) id mopts, prog)
+     return (maybe [] id mopts, prog)
 
 
 
@@ -641,7 +639,7 @@ parseExactly p loc str =
     Left e -> Left (show e)
     Right x -> Right x
 
-parseProgramWithOptions :: String -> String -> Either String (LanguageOptions, Program)
+parseProgramWithOptions :: String -> String -> Either String ([LanguageOption], Program)
 parseProgramWithOptions = parseExactly programWithOptions
 
 parseTerm :: String -> String -> Either String Term

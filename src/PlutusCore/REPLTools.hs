@@ -68,29 +68,29 @@ quit = flushLine "See you next time!"
 
 
 
-evalAndPrintTerm :: LanguageOptions -> Program -> Environment -> Term -> IO ()
+evalAndPrintTerm :: [LanguageOption] -> Program -> Environment -> Term -> IO ()
 evalAndPrintTerm opts (Program decls) env m =
   case runElaborator
-         opts
+         (ElabState opts)
          (proofDeveloper (SynthJ (Context decls []) m)) of
     Left e -> printError (showProofError e)
     Right _ -> case evaluate undefined env 1000000 m of
       Left e' -> printError e'
       Right v -> flushLine (pretty v)
 
-evalAndPrint :: LanguageOptions -> Program -> Environment -> String -> IO ()
+evalAndPrint :: [LanguageOption] -> Program -> Environment -> String -> IO ()
 evalAndPrint opts prog env s =
   case parseTerm "REPL (no source file)" s of
     Left e -> printError e
     Right m -> evalAndPrintTerm opts prog env (freeToDefined (\n -> Decname n :$: []) m)
 
-getType :: LanguageOptions -> Program -> String -> IO ()
+getType :: [LanguageOption] -> Program -> String -> IO ()
 getType opts (Program decls) s =
   case parseTerm "REPL (no source file)" s of
     Left e -> printError e
     Right m ->
       case runElaborator
-             opts
+             (ElabState opts)
              (proofDeveloper (SynthJ (Context decls []) m)) of
         Left e -> printError (showProofError e)
         Right a -> flushLine (pretty a)
@@ -170,7 +170,7 @@ invalid :: String -> IO ()
 invalid s =
   printError ("Invalid REPL command: " ++ s)
 
-evalAndPrintPrefixedOnValue :: LanguageOptions -> Program -> Environment -> String -> IO ()
+evalAndPrintPrefixedOnValue :: [LanguageOption] -> Program -> Environment -> String -> IO ()
 evalAndPrintPrefixedOnValue opts prog env s =
   if invalidName s
   then printError ("Not a valid name: " ++ s)
@@ -186,7 +186,7 @@ evalAndPrintPrefixedOnValue opts prog env s =
           do flushStr ("Testing " ++ n ++ ": ")
              evalAndPrintTerm opts prog env (appH (Decname n :$: []) m)
 
-replLoop :: [String] -> LanguageOptions -> Program -> Environment -> IO ()
+replLoop :: [String] -> [LanguageOption] -> Program -> Environment -> IO ()
 replLoop files opts prog env = hSetBuffering stdin LineBuffering >> continue
   where
     continue =
@@ -238,13 +238,13 @@ replFiles locs =
          in if null optss || all (equivalent (head optss)) (tail optss)
             then let prog0 = Program (progs >>= (\(Program mods) -> mods))
                      opts = head optss
-                 in case elabProgram opts prog0 of
+                 in case elabProgram (ElabState opts) prog0 of
                       Left e -> printError e
                       Right (prog,dctx) ->
                         {-# SCC "replLoopProf" #-} replLoop locs opts prog dctx
             else printError "Conflicting language options."
   where
-    equivalent (LanguageOptions opts0) (LanguageOptions opts1) =
+    equivalent opts0 opts1 =
       sort (nub opts0) == sort (nub opts1)
     elabProgram opts prog =
       do mapLeft showProofError

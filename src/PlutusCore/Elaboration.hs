@@ -41,7 +41,7 @@ import Data.List
 
 
 
-instance Decomposable LanguageOptions ElabError Judgment where
+instance Decomposable ElabState ElabError Judgment where
   decompose (ElabProgramJ prog) = programJ prog
   decompose (ElabDeclJ nomctx decl) =
     declJ nomctx decl
@@ -431,8 +431,8 @@ synthCompBuiltin n = failure (UnknownCompBuiltinName n)
 
 enforceLanguageOptionsUsesConstructors :: ElabDecomposer ()
 enforceLanguageOptionsUsesConstructors =
-  do LanguageOptions opts <- get
-     if NoConstructors `elem` opts
+  do s <- get
+     if NoConstructors `elem` languageOptions s
         then failure LanguageOptionNoConstructors
         else return ()
 
@@ -440,8 +440,8 @@ enforceLanguageOptionsUsesConstructors =
 
 enforceLanguageOptionsUsesFixedPointTypes :: ElabDecomposer ()
 enforceLanguageOptionsUsesFixedPointTypes =
-  do LanguageOptions opts <- get
-     if FixedPointTypes `elem` opts
+  do s <- get
+     if FixedPointTypes `elem` languageOptions s
         then return ()
         else failure LanguageOptionFixedPointTypes
 

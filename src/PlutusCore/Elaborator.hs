@@ -23,6 +23,7 @@ import Utils.ProofDev
 --import Utils.Unifier
 --import Utils.Vars
 import PlutusCore.ElabError
+import PlutusCore.Judgments
 import PlutusCore.LanguageOptions
 import PlutusCore.Program
 import PlutusCore.Term
@@ -43,29 +44,29 @@ import PlutusCore.Judgments
 
 
 
+data ElabState = ElabState { languageOptions :: [LanguageOption]
+                           }
 
+type ElabDecomposer = Decomposer ElabState ElabError Judgment
 
-type ElabDecomposer = Decomposer LanguageOptions ElabError Judgment
-
-type Elaborator = ProofDeveloper LanguageOptions ElabError Judgment
+type Elaborator = ProofDeveloper ElabState ElabError Judgment
 
 type TypeChecker = Elaborator
 
-runElaborator :: LanguageOptions
+runElaborator :: ElabState
               -> Elaborator a
-              -> Either (ProofError LanguageOptions ElabError Judgment)
+              -> Either (ProofError ElabState ElabError Judgment)
                         a
-runElaborator opts e =
-  fst <$> (runProofDeveloper e [] opts)
+runElaborator s e =
+  fst <$> (runProofDeveloper e [] s)
 
 
 
 
-instance ShowProofError LanguageOptions ElabError Judgment where
+instance ShowProofError ElabState ElabError Judgment where
   showProofError (ProofError err _ ctx0 (Any g0)) =
      "Could not prove " ++ prettyJudgment g0
       ++ "\nError message: " ++ prettyElabError err
-      ++ "\nContext:" ++ go ctx0
     where
       go :: ProofContext (Any Judgment) -> String
       go [] = ""
@@ -128,5 +129,5 @@ instance ShowProofError LanguageOptions ElabError Judgment where
         ++ "`"
 
 
-instance Metas LanguageOptions Judgment where
+instance Metas ElabState Judgment where
   substitute _ j = j
