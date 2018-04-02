@@ -67,6 +67,7 @@ instance ShowProofError ElabState ElabError Judgment where
   showProofError (ProofError err _ ctx0 (Any g0)) =
      "Could not prove " ++ prettyJudgment g0
       ++ "\nError message: " ++ prettyElabError err
+      ++ "\nContext: " ++ go ctx0
     where
       go :: ProofContext (Any Judgment) -> String
       go [] = ""
