@@ -312,6 +312,22 @@ descope (Scope ns fns b) = (freshNs, unbind 0 (map FreeVar freshNs) b)
   where freshNs = freshen [ n | FreeVar n <- fns ] ns
 
 
+-- | Opening a scope is very similar to descoping, except that it produces new
+-- variable names. The primary difference is that descoping exists to serve
+-- the instantiation process, wherein the descoped variables are immediately
+-- substituted asay, while opening a scope exists to serve the process of
+-- performing actions under a scope, where the variables still exist and are
+-- now in some variable context to be referenced.
+
+openScope :: [String] -> Scope sig -> ([String], ABT sig)
+openScope oldNs sc =
+  let ns = names sc
+      newNames = freshen oldNs ns
+      newVars = map (Var . Free . FreeVar) newNames
+      m = instantiate sc newVars
+  in (newNames, m)
+
+
 
 
 

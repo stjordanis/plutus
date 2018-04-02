@@ -10,7 +10,8 @@
 
 module PlutusCore.Elaboration where
 
-import Utils.ABTs.ABT
+import Utils.ABTs.ABT hiding (openScope)
+import qualified Utils.ABTs.ABT as ABT
 --import Utils.Elaborator hiding (openScope)
 --import Utils.Names
 import Utils.ABTs.Pretty
@@ -62,15 +63,8 @@ instance Decomposable ElabState ElabError Judgment where
 
 
 
-openScope :: HypotheticalContext -> Scope PlutusSig -> ([FreeVar], [String], Term)
-openScope ctx sc =
-  let ns = names sc
-      oldNs = map variableName ctx
-      freshNs = map FreeVar (freshen oldNs ns)
-      newVars = [ Var (Free n) | n <- freshNs ]
-      newNames = [ x | FreeVar x <- freshNs ]
-      m = instantiate sc newVars
-  in (freshNs, newNames, m)
+openScope :: HypotheticalContext -> Scope PlutusSig -> ([String], Term)
+openScope ctx sc = ABT.openScope (map variableName ctx) sc
 
 
 
@@ -555,7 +549,7 @@ isTypeJ ctx (ConT c :$: as) =
      return TypeK
 isTypeJ ctx (FixT :$: [sc]) =
   do enforceLanguageOptionsUsesFixedPointTypes
-     let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+     let ([n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n TypeK : hypotheticalContext ctx
                     }
@@ -569,7 +563,7 @@ isTypeJ ctx (CompT :$: [a]) =
        (failure (CompArgumentNotType (instantiate0 a) k))
      return TypeK
 isTypeJ ctx (ForallT k :$: [sc]) =
-  do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+  do let ([n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
                     }
@@ -584,7 +578,7 @@ isTypeJ _ (FloatT :$: []) =
 isTypeJ _ (ByteStringT :$: []) =
   return TypeK
 isTypeJ ctx (LamT k :$: [sc]) =
-  do let (_, [n], a) = openScope (hypotheticalContext ctx) sc
+  do let ([n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
                     }
@@ -673,16 +667,16 @@ isTermValueJ m =
 
 checkJ :: Context -> Term -> Term -> ElabDecomposer ()
 checkJ ctx (ForallT k :$: [sc]) (Abst :$: [sc']) =
-  do let ([x], [n], a) = openScope (hypotheticalContext ctx) sc
+  do let ([n], a) = openScope (hypotheticalContext ctx) sc
          ctx' = ctx { hypotheticalContext =
                         HasKind n k : hypotheticalContext ctx
                     }
-         m = instantiate sc' [Var (Free x)]
+         m = instantiate sc' [Var (Free (FreeVar n))]
          tenv = nominalContextToTypeEnv ctx
          normal_a = evaluateType tenv a
      goal (CheckJ ctx' normal_a m)
 checkJ ctx (FunT :$: [a,b]) (Lam :$: [sc']) =
-  do let (_, [n], m) = openScope (hypotheticalContext ctx) sc'
+  do let ([n], m) = openScope (hypotheticalContext ctx) sc'
          ctx' = ctx { hypotheticalContext =
                         HasType n (instantiate0 a) : hypotheticalContext ctx
                     }
@@ -799,7 +793,7 @@ synthJ ctx m0@(Bind :$: [m,sc]) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
        CompT :$: [b] ->
-         do let (_, [n], m') = openScope (hypotheticalContext ctx) sc
+         do let ([n], m') = openScope (hypotheticalContext ctx) sc
                 ctx' = ctx { hypotheticalContext =
                                HasType n (instantiate0 b)
                                  : hypotheticalContext ctx
@@ -847,7 +841,7 @@ clauseJ ctx tc as t (Clause c :$: [sc]) =
      unless (length bscs == length (names sc))
        (failure
          (ClauseConstructorWrongNumberOfArguments c (length bscs) (length (names sc))))
-     let (_, ns, m) = openScope (hypotheticalContext ctx) sc
+     let (ns, m) = openScope (hypotheticalContext ctx) sc
          bs = map (\bsc -> instantiate bsc as) bscs
          tenv = nominalContextToTypeEnv ctx
          normal_bs = map (evaluateType tenv) bs
@@ -873,8 +867,8 @@ equalJ ctx@(Context nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
   if c /= c'
   then failure (TermsNotEqual m0 m0')
   else forM_ (zip scs scs') $ \(sc,sc') ->
-         do let (xs, ns, m) = openScope (hypotheticalContext ctx) sc
-                m' = instantiate sc' (map (Var . Free) xs)
+         do let (ns, m) = openScope (hypotheticalContext ctx) sc
+                m' = instantiate sc' (map (Var . Free . FreeVar) ns)
                 tenv = nominalContextToTypeEnv (Context nomctx [])
                 normal_m = evaluateType tenv m
                 normal_m' = evaluateType tenv m'
