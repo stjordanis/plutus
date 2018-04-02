@@ -10,12 +10,12 @@
 
 module Interface.Integration where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 --import Utils.Elaborator
 import Utils.Env
 import Utils.Names
 import qualified Utils.ProofDev as PD
-import Utils.Vars
+import Utils.ABTs.Vars
 --import qualified Plutus.Program as Plutus
 import qualified PlutusCore.Evaluation as Core
 import qualified PlutusCore.EvaluatorTypes as Core

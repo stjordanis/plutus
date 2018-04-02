@@ -10,8 +10,8 @@ module PlutusShared.BoolToTerm where
 
 import PlutusCore.Term
 
-import Utils.ABT
-import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Vars
 
 
 

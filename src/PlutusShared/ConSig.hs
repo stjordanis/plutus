@@ -11,9 +11,9 @@
 
 module PlutusShared.ConSig where
 
-import Utils.ABT
-import Utils.Pretty (pretty)
-import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty (pretty)
+import Utils.ABTs.Vars
 import PlutusShared.Type
 
 import Data.List (intercalate)

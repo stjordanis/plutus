@@ -2,13 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
---{-# LANGUAGE FlexibleContexts #-}
---{-# LANGUAGE FlexibleInstances #-}
---{-# LANGUAGE Rank2Types #-}
---{-# LANGUAGE StandaloneDeriving #-}
---{-# LANGUAGE TypeSynonymInstances #-}
---{-# LANGUAGE UndecidableInstances #-}
---{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 
 
@@ -25,13 +19,12 @@
 -- two different types available to the class of constructions, one for terms
 -- and one for scopes.
 
-module Utils.ABT where
+module Utils.ABTs.ABT where
 
-import Utils.Vars
+import Utils.ABTs.Vars
 
---import Control.Monad.State
 import Data.List (elemIndex)
---import GHC.Generics
+import GHC.Generics
 
 
 
@@ -71,7 +64,7 @@ import Data.List (elemIndex)
 
 data ABT sig = Var Variable
              | sig :$: [Scope sig]
-  deriving (Show)
+  deriving (Show,Generic)
 
 
 
@@ -88,7 +81,7 @@ data Scope sig
       , freeNames :: [FreeVar]
       , body :: ABT sig
       }
-  deriving (Show)
+  deriving (Show,Generic)
 
 
 
@@ -485,12 +478,20 @@ metaVarsScope (Scope _ _ x) = metaVars x
 
 -- * Equality
 
+-- | Equality on ABTs is pretty straight forward structural equality. Because
+-- the signature provides construct names, we just need to ensure that the
+-- equated constructs have the same name, and equal argument lists.
 
 instance Eq sig => Eq (ABT sig) where
   Var x == Var y = x == y
   c :$: xs == c' :$: xs' = c == c' && xs == xs'
   _ == _ = False
 
+
+-- | The equality for scopes is slightly more involved though, because scopes
+-- store some information about names for convenience, and also use De Bruijn
+-- indices. So to equate scopes, we just need them to bind the same number of
+-- variables, for for their bodies to be equal.
 
 instance Eq sig => Eq (Scope sig) where
   Scope ns _ x == Scope ns' _ y =

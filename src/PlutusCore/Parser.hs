@@ -15,8 +15,8 @@ module PlutusCore.Parser where
 import PlutusCore.LanguageOptions
 import PlutusCore.Program
 import PlutusCore.Term
-import Utils.ABT
-import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Vars
 
 import qualified Data.ByteString.Lazy as BS
 import Data.Char (digitToInt,toUpper)

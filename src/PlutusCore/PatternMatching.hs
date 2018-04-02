@@ -9,7 +9,7 @@
 module PlutusCore.PatternMatching where
 
 import PlutusCore.Term
-import Utils.ABT
+import Utils.ABTs.ABT
 
 -- import Control.Monad
 

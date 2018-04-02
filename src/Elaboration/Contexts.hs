@@ -10,7 +10,7 @@ module Elaboration.Contexts where
 
 import Utils.Env
 import Utils.Names
-import Utils.Vars
+import Utils.ABTs.Vars
 import PlutusShared.ConSig
 import PlutusShared.Type
 import qualified PlutusCore.Term as Core

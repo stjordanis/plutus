@@ -17,7 +17,7 @@
 -- @(M N) P@ can become @M N P@, but not in the argument position, i.e.
 -- @M (N P)@ cannot become @M N P@ but instead must remain parenthesized.
 
-module Utils.Pretty where
+module Utils.ABTs.Pretty where
 
 
 

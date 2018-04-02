@@ -8,10 +8,10 @@
 
 module Plutus.Program where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 import Utils.Names
-import Utils.Pretty
-import Utils.Vars
+import Utils.ABTs.Pretty
+import Utils.ABTs.Vars
 import Plutus.Term
 import PlutusShared.ConSig
 import PlutusShared.Type

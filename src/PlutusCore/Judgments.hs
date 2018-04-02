@@ -10,7 +10,7 @@
 
 module PlutusCore.Judgments where
 
--- import Utils.ABT
+-- import Utils.ABTs.ABT
 -- import qualified Utils.ProofDeveloper as PD
 import PlutusCore.Contexts
 import PlutusCore.Program

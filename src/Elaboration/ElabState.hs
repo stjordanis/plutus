@@ -9,7 +9,7 @@
 module Elaboration.ElabState where
 
 import Utils.Unifier
-import Utils.Vars
+import Utils.ABTs.Vars
 import PlutusShared.Type
 
 

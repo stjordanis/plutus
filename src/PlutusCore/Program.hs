@@ -9,8 +9,8 @@
 
 module PlutusCore.Program where
 
-import Utils.ABT
-import Utils.Pretty
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty
 import PlutusCore.Term
 
 import Data.List (isPrefixOf)

@@ -15,13 +15,13 @@
 
 module Elaboration.Elaborator where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 --import Utils.Env
 import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import qualified Utils.ProofDev as PD
 --import Utils.Unifier
-import Utils.Vars
+import Utils.ABTs.Vars
 import Plutus.Program
 import Plutus.Term
 import PlutusShared.ConSig

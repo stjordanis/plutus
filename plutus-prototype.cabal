@@ -79,15 +79,15 @@ executable plutus-core-repl
                        PlutusCore.REPLTypes,
                        PlutusCore.Term,
                        PlutusShared.BoolToTerm,
-                       Utils.ABT,
+                       Utils.ABTs.ABT,
+                       Utils.ABTs.Pretty,
+                       Utils.ABTs.Vars,
                        Utils.Env,
-                       Utils.Pretty,
-                       Utils.ProofDev,
-                       Utils.Vars
+                       Utils.ProofDev
 
 library
-  exposed-modules:     Utils.Vars,
-                       Utils.ABT,
+  exposed-modules:     Utils.ABTs.Vars,
+                       Utils.ABTs.ABT,
                        Utils.ProofDev,
                        PlutusCore.Term,
                        PlutusCore.BuiltinEvaluation,
@@ -112,7 +112,7 @@ library
                        PlutusShared.BoolToTerm,
                        Utils.Env,
                        Utils.Eval,
-                       Utils.Pretty,
+                       Utils.ABTs.Pretty,
                        Utils.Suffix,
                        Paths_plutus_prototype
   -- other-extensions:    

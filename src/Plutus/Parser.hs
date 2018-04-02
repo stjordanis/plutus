@@ -21,10 +21,10 @@
 
 module Plutus.Parser where
 
-import Utils.ABT hiding (bind)
+import Utils.ABTs.ABT hiding (bind)
 import Utils.Names
 import Utils.Suffix
-import Utils.Vars
+import Utils.ABTs.Vars
 import Plutus.Term
 import PlutusShared.ConSig
 import PlutusShared.Type

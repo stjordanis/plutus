@@ -21,8 +21,8 @@ import PlutusCore.REPLParser
 import PlutusCore.REPLTypes
 import PlutusCore.Term
 
-import Utils.ABT hiding (names)
-import Utils.Pretty
+import Utils.ABTs.ABT hiding (names)
+import Utils.ABTs.Pretty
 import Utils.ProofDev
 
 import Data.Char

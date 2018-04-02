@@ -12,10 +12,10 @@ import PlutusCore.EvaluatorTypes
 import PlutusCore.PatternMatching
 import PlutusCore.Term
 --import PlutusShared.BoolToTerm
-import Utils.ABT
+import Utils.ABTs.ABT
 --import Utils.Env
 --import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 
 import qualified Data.ByteString.Lazy as BS
 

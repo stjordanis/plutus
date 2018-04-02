@@ -11,8 +11,8 @@ module PlutusCore.BuiltinEvaluation where
 import PlutusCore.Term
 import PlutusShared.BoolToTerm
 --import PlutusShared.Qualified
-import Utils.ABT
-import Utils.Pretty
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty
 
 import Crypto.Hash
 import qualified Crypto.Sign.Ed25519 as Ed25519 ()

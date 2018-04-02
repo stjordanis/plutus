@@ -16,7 +16,7 @@ import Plutus.Term
 import PlutusCore.Evaluation
 import qualified PlutusCore.Term as Core
 import Plutus.Parser
-import Utils.ABT
+import Utils.ABTs.ABT
 import Utils.Env
 import Utils.JSABT
 import Utils.Names

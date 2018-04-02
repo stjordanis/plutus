@@ -7,8 +7,8 @@
 
 module PlutusCore.ElabError where
 
-import Utils.Pretty
-import Utils.Vars
+import Utils.ABTs.Pretty
+import Utils.ABTs.Vars
 import PlutusCore.Term
 
 

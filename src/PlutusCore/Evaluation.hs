@@ -13,11 +13,11 @@
 
 module PlutusCore.Evaluation where
 
---import Utils.ABT
+--import Utils.ABTs.ABT
 --import Utils.Env
 --import Utils.Eval
 --import Utils.Names
---import Utils.Pretty (pretty)
+--import Utils.ABTs.Pretty (pretty)
 import qualified PlutusCore.CKMachine as CK
 --import PlutusCore.BuiltinEvaluation
 import PlutusCore.EvaluatorTypes

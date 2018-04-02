@@ -15,9 +15,9 @@
 
 module Elaboration.Unification where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 -- import Utils.Elaborator
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import Utils.Unifier
 import PlutusTypes.Type
 import Elaboration.Elaborator

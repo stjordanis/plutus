@@ -2,9 +2,9 @@ module Profiling.Profiling where
 
 import PlutusCore.Evaluation
 import PlutusCore.Term
-import Utils.ABT
-import Utils.Pretty
-import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty
+import Utils.ABTs.Vars
 
 
 main :: IO ()

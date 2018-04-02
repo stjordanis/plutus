@@ -17,10 +17,10 @@
 module PlutusCore.Term where
 
 -- import PlutusShared.Type
-import Utils.ABT
+import Utils.ABTs.ABT
 -- import Utils.Names
-import Utils.Pretty
-import Utils.Vars
+import Utils.ABTs.Pretty
+import Utils.ABTs.Vars
 
 -- import Control.Monad.State
 import Data.Bits

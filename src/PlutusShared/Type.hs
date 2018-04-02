@@ -17,9 +17,9 @@
 
 module PlutusShared.Type where
 
-import Utils.ABT
-import Utils.Pretty
--- import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty
+-- import Utils.ABTs.Vars
 
 import GHC.Generics
 

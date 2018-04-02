@@ -16,13 +16,13 @@
 
 module Elaboration.Elaboration where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 import Utils.Elaborator
 import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import Utils.ProofDev hiding (Decomposer,ElabError)
 --import Utils.Unifier
-import Utils.Vars
+import Utils.ABTs.Vars
 import Plutus.Term
 import PlutusShared.ConSig
 import PlutusShared.Type

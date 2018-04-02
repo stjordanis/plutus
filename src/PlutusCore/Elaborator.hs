@@ -15,13 +15,13 @@
 
 module PlutusCore.Elaborator where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 --import Utils.Env
 --import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import Utils.ProofDev
 --import Utils.Unifier
---import Utils.Vars
+--import Utils.ABTs.Vars
 import PlutusCore.ElabError
 import PlutusCore.Judgments
 import PlutusCore.LanguageOptions

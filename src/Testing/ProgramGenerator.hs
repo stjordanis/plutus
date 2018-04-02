@@ -17,9 +17,9 @@ import PlutusShared.Qualified
 import PlutusCore.Contexts
 import PlutusCore.Term
 
-import Utils.ABT
-import Utils.Pretty
-import Utils.Vars
+import Utils.ABTs.ABT
+import Utils.ABTs.Pretty
+import Utils.ABTs.Vars
 
 
 

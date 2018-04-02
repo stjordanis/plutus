@@ -5,10 +5,10 @@
 
 module Interface.REPL where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 import Utils.JSABT
 import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import qualified Utils.ProofDev as PD
 import qualified PlutusCore.Term as Core
 import PlutusCore.Evaluation

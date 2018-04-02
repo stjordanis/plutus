@@ -10,13 +10,13 @@
 
 module PlutusCore.Elaboration where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 --import Utils.Elaborator hiding (openScope)
 --import Utils.Names
-import Utils.Pretty
+import Utils.ABTs.Pretty
 import Utils.ProofDev
 --import Utils.Unifier
-import Utils.Vars
+import Utils.ABTs.Vars
 import PlutusCore.ElabError
 import PlutusCore.Evaluation
 import PlutusCore.LanguageOptions

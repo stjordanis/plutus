@@ -10,9 +10,9 @@
 
 module Elaboration.Judgments where
 
-import Utils.ABT
+import Utils.ABTs.ABT
 import qualified Utils.ProofDev as PD
---import Utils.Vars
+--import Utils.ABTs.Vars
 import Elaboration.Contexts
 import Elaboration.ElabState
 import PlutusShared.ConSig
