@@ -49,15 +49,15 @@ data Any f where
 substituteAny :: Metas s g => s -> Any g -> Any g
 substituteAny s (Any g) = Any (substitute s g)
 
-type ProofContext a = [(Int,a)]
 
-substituteContext :: Metas s g => s -> ProofContext (Any g) -> ProofContext (Any g)
+type ProofContext g = [(Int,Any g)]
+substituteContext :: Metas s g => s -> ProofContext g -> ProofContext g
 substituteContext subs = map (\(i,x) -> (i, substituteAny subs x))
 
 data ProofError s e g =
   ProofError { proofError :: e
              , proofState :: s
-             , proofContext :: ProofContext (Any g)
+             , proofContext :: ProofContext g
              , proofGoal :: Any g
              }
 
@@ -66,12 +66,12 @@ class ShowProofError s e g where
 
 
 
-type ProofDeveloper s e g = ReaderT (ProofContext (Any g))
+type ProofDeveloper s e g = ReaderT (ProofContext g)
                               (StateT s
                                 (Either (ProofError s e g)))
 
 runProofDeveloper :: ProofDeveloper s e g a
-                  -> ProofContext (Any g)
+                  -> ProofContext g
                   -> s
                   -> Either (ProofError s e g) (a,s)
 runProofDeveloper l ctx s =

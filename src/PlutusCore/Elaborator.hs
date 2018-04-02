@@ -69,7 +69,7 @@ instance ShowProofError ElabState ElabError Judgment where
       ++ "\nError message: " ++ prettyElabError err
       ++ "\nContext: " ++ go ctx0
     where
-      go :: ProofContext (Any Judgment) -> String
+      go :: ProofContext Judgment -> String
       go [] = ""
       go ((_,Any (ElabProgramJ _)):gs) =
         go gs
