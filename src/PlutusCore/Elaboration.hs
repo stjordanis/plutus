@@ -63,8 +63,9 @@ instance Decomposable ElabState ElabError Judgment where
 
 
 
-openScope :: HypotheticalContext -> Scope PlutusSig -> ([String], Term)
-openScope ctx sc = ABT.openScope (map variableName ctx) sc
+openScope :: Context -> Scope PlutusSig -> ([String], Term)
+openScope ctx sc =
+  ABT.openScope (map variableName (hypotheticalContext ctx)) sc
 
 
 
@@ -549,11 +550,8 @@ isTypeJ ctx (ConT c :$: as) =
      return TypeK
 isTypeJ ctx (FixT :$: [sc]) =
   do enforceLanguageOptionsUsesFixedPointTypes
-     let ([n], a) = openScope (hypotheticalContext ctx) sc
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n TypeK : hypotheticalContext ctx
-                    }
-     k' <- goal (IsTypeJ ctx' a)
+     let ([n], a) = openScope ctx sc
+     k' <- goal (IsTypeJ (extendHyp ctx [HasKind n TypeK]) a)
      unless (k' == TypeK)
        (failure (FixBodyNotType a k'))
      return TypeK
@@ -563,11 +561,8 @@ isTypeJ ctx (CompT :$: [a]) =
        (failure (CompArgumentNotType (instantiate0 a) k))
      return TypeK
 isTypeJ ctx (ForallT k :$: [sc]) =
-  do let ([n], a) = openScope (hypotheticalContext ctx) sc
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n k : hypotheticalContext ctx
-                    }
-     k' <- goal (IsTypeJ ctx' a)
+  do let ([n], a) = openScope ctx sc
+     k' <- goal (IsTypeJ (extendHyp ctx [HasKind n k]) a)
      unless (k' == TypeK)
        (failure (ForallBodyNotType a k'))
      return TypeK
@@ -578,11 +573,8 @@ isTypeJ _ (FloatT :$: []) =
 isTypeJ _ (ByteStringT :$: []) =
   return TypeK
 isTypeJ ctx (LamT k :$: [sc]) =
-  do let ([n], a) = openScope (hypotheticalContext ctx) sc
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n k : hypotheticalContext ctx
-                    }
-     k' <- goal (IsTypeJ ctx' a)
+  do let ([n], a) = openScope ctx sc
+     k' <- goal (IsTypeJ (extendHyp ctx [HasKind n k]) a)
      return (FunK k k')
 isTypeJ ctx (AppT :$: [a,b]) =
   do k <- goal (IsTypeJ ctx (instantiate0 a))
@@ -667,20 +659,14 @@ isTermValueJ m =
 
 checkJ :: Context -> Term -> Term -> ElabDecomposer ()
 checkJ ctx (ForallT k :$: [sc]) (Abst :$: [sc']) =
-  do let ([n], a) = openScope (hypotheticalContext ctx) sc
-         ctx' = ctx { hypotheticalContext =
-                        HasKind n k : hypotheticalContext ctx
-                    }
-         m = instantiate sc' [Var (Free (FreeVar n))]
-         tenv = nominalContextToTypeEnv ctx
-         normal_a = evaluateType tenv a
-     goal (CheckJ ctx' normal_a m)
+  do let ([n], a) = openScope ctx sc
+     goal (CheckJ (extendHyp ctx [HasKind n k])
+                  (evaluateType (nominalContextToTypeEnv ctx) a)
+                  (instantiate sc' [Var (Free (FreeVar n))]))
 checkJ ctx (FunT :$: [a,b]) (Lam :$: [sc']) =
-  do let ([n], m) = openScope (hypotheticalContext ctx) sc'
-         ctx' = ctx { hypotheticalContext =
-                        HasType n (instantiate0 a) : hypotheticalContext ctx
-                    }
-     goal (CheckJ ctx' (instantiate0 b) m)
+  do let ([n], m) = openScope ctx sc'
+     goal (CheckJ (extendHyp ctx [HasType n (instantiate0 a)])
+                  (instantiate0 b) m)
 checkJ ctx (ConT c :$: as) (Con c' :$: ms) =
   do enforceLanguageOptionsUsesConstructors
      (bscs, tc) <- termConstructorInContext ctx c'
@@ -793,12 +779,8 @@ synthJ ctx m0@(Bind :$: [m,sc]) =
   do a <- goal (SynthJ ctx (instantiate0 m))
      case a of
        CompT :$: [b] ->
-         do let ([n], m') = openScope (hypotheticalContext ctx) sc
-                ctx' = ctx { hypotheticalContext =
-                               HasType n (instantiate0 b)
-                                 : hypotheticalContext ctx
-                           }
-            c <- goal (SynthJ ctx' m')
+         do let ([n], m') = openScope ctx sc
+            c <- goal (SynthJ (extendHyp ctx [HasType n (instantiate0 b)]) m')
             case c of
               CompT :$: [_] -> return c
               _ -> failure (BindBodyNotCompType m0 c)
@@ -841,14 +823,11 @@ clauseJ ctx tc as t (Clause c :$: [sc]) =
      unless (length bscs == length (names sc))
        (failure
          (ClauseConstructorWrongNumberOfArguments c (length bscs) (length (names sc))))
-     let (ns, m) = openScope (hypotheticalContext ctx) sc
+     let (ns, m) = openScope ctx sc
          bs = map (\bsc -> instantiate bsc as) bscs
          tenv = nominalContextToTypeEnv ctx
          normal_bs = map (evaluateType tenv) bs
-         ctx' = ctx { hypotheticalContext =
-                        [ HasType n b | (n,b) <- zip ns normal_bs ]
-                          ++ hypotheticalContext ctx
-                    }
+         ctx' = extendHyp ctx [ HasType n b | (n,b) <- zip ns normal_bs ]
      goal (CheckJ ctx' t m)
 clauseJ _ _ _ _ _ =
   error "Tried to check that a non-clause is a well-formed clause.\
@@ -867,15 +846,12 @@ equalJ ctx@(Context nomctx _) m0@(c :$: scs) m0'@(c' :$: scs') =
   if c /= c'
   then failure (TermsNotEqual m0 m0')
   else forM_ (zip scs scs') $ \(sc,sc') ->
-         do let (ns, m) = openScope (hypotheticalContext ctx) sc
+         do let (ns, m) = openScope ctx sc
                 m' = instantiate sc' (map (Var . Free . FreeVar) ns)
                 tenv = nominalContextToTypeEnv (Context nomctx [])
                 normal_m = evaluateType tenv m
                 normal_m' = evaluateType tenv m'
-                ctx' = ctx { hypotheticalContext =
-                               [ HasType n undefined | n <- ns ]
-                                 ++ hypotheticalContext ctx
-                           }
+                ctx' = extendHyp ctx [ HasType n undefined | n <- ns ]
             goal (EqualJ ctx' normal_m normal_m')
 equalJ _ m m' =
   failure (TermsNotEqual m m')
