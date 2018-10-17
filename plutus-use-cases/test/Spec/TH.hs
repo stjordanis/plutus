@@ -23,7 +23,7 @@ pendingTxVesting = [| \(h :: Height) (out :: Value) ->
         hash = 1123 -- stand-in for a transaction hash
         rest  = total - out
     in PendingTx {
-        pendingTxCurrentInput = (PendingTxIn (PendingTxOutRef 100 0 []) (), total),
+        pendingTxCurrentInput = (PendingTxIn (PendingTxOutRef 100 0 []) (Just ()), total),
         pendingTxOtherInputs  = []::[(PendingTxIn (), Value)],
         pendingTxOutputs      = (PendingTxOut out Nothing (PubKeyTxOut (PubKey 1))::(PendingTxOut VestingData)):(PendingTxOut rest (Just (VestingData hash out)) DataTxOut::(PendingTxOut VestingData)):([]::[PendingTxOut VestingData]),
         pendingTxForge        = 0,
@@ -36,9 +36,9 @@ pendingTxVesting = [| \(h :: Height) (out :: Value) ->
 --    and one or two inputs with their respective signatures.
 pendingTxCrowdfunding :: Q Exp
 pendingTxCrowdfunding = [| \(h :: Height) (txSigs :: [Signature]) ((v1, sig1)::(Value,[Signature])) (v2::Maybe (Value, [Signature])) ->
-    let i1 = (PendingTxIn (PendingTxOutRef 100 1 sig1) (), v1)
+    let i1 = (PendingTxIn (PendingTxOutRef 100 1 sig1) (Just ()), v1)
         i2 = case v2 of
-                Just (v2', sig2) -> (PendingTxIn (PendingTxOutRef 200 1 sig2) (), v2'):[]
+                Just (v2', sig2) -> (PendingTxIn (PendingTxOutRef 200 1 sig2) (Just ()), v2'):[]
                 Nothing          -> []::[(PendingTxIn (), Value)]
     in PendingTx {
         pendingTxCurrentInput = i1,
