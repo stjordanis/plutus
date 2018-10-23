@@ -27,6 +27,7 @@ import qualified Data.Bits            as Bits
 import qualified Data.ByteArray       as BA
 import           Data.Foldable        (foldl')
 import           Data.List            (inits, tails)
+import           Data.Maybe           (catMaybes)
 import           Data.Memory.Endian   (LE (..), fromLE)
 import qualified Data.Set             as Set
 import           Data.Word            (Word32)
@@ -34,7 +35,8 @@ import           GHC.Generics         (Generic)
 import           Language.Plutus.Lift (LiftPlc (..), TypeablePlc (..))
 import           Language.Plutus.TH   (PlcCode)
 import           Wallet.API           (PubKey (..))
-import           Wallet.UTXO          (Signature (..), TxId, UtxoLookup)
+import           Wallet.UTXO          (DataScript (..), Signature (..), TxId, UtxoLookup, ValidationData (..),
+                                       Validator (..))
 import qualified Wallet.UTXO          as UTXO
 
 data PendingTxOutType =
@@ -112,14 +114,23 @@ type Hash = Int
 --   TODO: Use [[Wallet.UTXO.Height]] when Integer is supported
 type Height = Int
 
+-- pendingScriptInputs :: (Applicative m, UtxoLookup m)
+--     => UTXO.Height
+--     -> UTXO.Tx
+--     -> m [(ValidationData, Validator, DataScript)]
+-- pendingScriptInputs h t = fmap _ . catMaybes . fmap (sequence . swap) <$> mkPending h t where
+--     swap (a, b) = (b, a)
+    
+
 -- | Turn a UTXO transaction with @n@ inputs into a list of @n@ pending
 --   transactions. Each pending transaction has a different
 --   `pendingTxCurrentIn`, and is paired with its validator script (if it
---   happens to be a scripted transaction input).
+--   happens to be a scripted transaction input) or its signature (if it is
+--   a pay-to-pub-key input)
 mkPending :: (Applicative m, UtxoLookup m)
     => UTXO.Height -- ^ Height of the blockchain
     -> UTXO.Tx -- ^ Transaction currently being validated
-    -> m [(Maybe PlcCode, PendingTx PlcCode PlcCode)]
+    -> m [(Either Validator Signature, PendingTx PlcCode PlcCode)]
 mkPending h UTXO.Tx{..} =
     fmap (uncurry rump) <$> fmap rotate (traverse prepareInput inputs) where
         inputs  = Set.toList txInputs
@@ -138,8 +149,8 @@ mkPending h UTXO.Tx{..} =
         mkOut (UTXO.TxOut _ v t') = PendingTxOut v' d s where
             v' = fromIntegral v
             (d, s) = case t' of
-                UTXO.PayToPubKey k                   -> (Nothing, PubKeyTxOut k)
-                UTXO.PayToScript (UTXO.DataScript c) -> (Just c, DataTxOut)
+                UTXO.PayToPubKey k -> (Nothing, PubKeyTxOut k)
+                UTXO.PayToScript (DataScript c) -> (Just c,  DataTxOut)
 
 -- | Given a transaction input of type `UTXO.TxIn'`, get all the data we need
 --   to run the validation script of this input. Since `UTXO.TxIn'` only
@@ -159,16 +170,22 @@ mkPending h UTXO.Tx{..} =
 --
 prepareInput :: (Applicative m, UtxoLookup m)
     => UTXO.TxIn'
-    -> m (Maybe PlcCode, (PendingTxIn PlcCode, Value))
+    -> m (Either Validator Signature, (PendingTxIn PlcCode, Value))
 prepareInput i = fmap assocr ((,) <$> mkIn i <*> valueOf i) where
     mkIn (UTXO.TxIn ref tp) = flip fmap (mkOutRef ref) $ \ref' ->
         case tp of
-            UTXO.ConsumeScriptAddress (UTXO.Validator v) (UTXO.Redeemer r) ->
-                (Just v, PendingTxIn ref' (Just r))
-            UTXO.ConsumePublicKeyAddress _                                 ->
-                (Nothing, PendingTxIn ref' Nothing)
+            UTXO.ConsumeScriptAddress v (UTXO.Redeemer r) ->
+                (Left v, PendingTxIn ref' (Just r))
+            UTXO.ConsumePublicKeyAddress k ->
+                (Right k, PendingTxIn ref' Nothing)
     mkOutRef t@(UTXO.TxOutRef h' idx) =
         PendingTxOutRef (mkHash h') idx <$> UTXO.lkpSigs t
+
+prepareInput' :: (Applicative m, UtxoLookup m)
+    => UTXO.TxIn'
+    -> m (Either (Validator, PendingTxIn PlcCode, Value) (PubKey, Signature))
+prepareInput' i = fmap go (UTXO.lookupRef $ UTXO.txInRef i) where
+    go (txOut', sigs) = case 
 
 -- | Given a list `l` of '(a,b)'s, `rotate l` pairs each `(a, b)` with the list
 --   of all other `b`s.
