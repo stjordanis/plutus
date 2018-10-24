@@ -35,7 +35,7 @@ import           GHC.Generics         (Generic)
 import           Language.Plutus.Lift (LiftPlc (..), TypeablePlc (..))
 import           Language.Plutus.TH   (PlcCode)
 import           Wallet.API           (PubKey (..))
-import           Wallet.UTXO          (DataScript (..), Signature (..), TxId, UtxoLookup, ValidationData (..),
+import           Wallet.UTXO          (DataScript (..), Signature (..), TxId, ValidationMonad, ValidationData (..),
                                        Validator (..))
 import qualified Wallet.UTXO          as UTXO
 
@@ -127,7 +127,7 @@ type Height = Int
 --   `pendingTxCurrentIn`, and is paired with its validator script (if it
 --   happens to be a scripted transaction input) or its signature (if it is
 --   a pay-to-pub-key input)
-mkPending :: (Applicative m, UtxoLookup m)
+mkPending :: (ValidationMonad m)
     => UTXO.Height -- ^ Height of the blockchain
     -> UTXO.Tx -- ^ Transaction currently being validated
     -> m [(Either Validator Signature, PendingTx PlcCode PlcCode)]
@@ -168,7 +168,7 @@ mkPending h UTXO.Tx{..} =
 --
 --  The latter two are intended to be converted to PLC using `LiftPLC`.
 --
-prepareInput :: (Applicative m, UtxoLookup m)
+prepareInput :: (ValidationMonad m)
     => UTXO.TxIn'
     -> m (Either Validator Signature, (PendingTxIn PlcCode, Value))
 prepareInput i = fmap assocr ((,) <$> mkIn i <*> valueOf i) where
@@ -181,11 +181,11 @@ prepareInput i = fmap assocr ((,) <$> mkIn i <*> valueOf i) where
     mkOutRef t@(UTXO.TxOutRef h' idx) =
         PendingTxOutRef (mkHash h') idx <$> UTXO.lkpSigs t
 
-prepareInput' :: (Applicative m, UtxoLookup m)
+prepareInput' :: (ValidationMonad m)
     => UTXO.TxIn'
     -> m (Either (Validator, PendingTxIn PlcCode, Value) (PubKey, Signature))
 prepareInput' i = fmap go (UTXO.lookupRef $ UTXO.txInRef i) where
-    go (txOut', sigs) = case 
+    go (txOut', sigs) = undefined
 
 -- | Given a list `l` of '(a,b)'s, `rotate l` pairs each `(a, b)` with the list
 --   of all other `b`s.
@@ -215,5 +215,5 @@ mkHash (UTXO.TxId h) = fromIntegral $ fromLE (LE w) where
 
     shiftWord (b :: Word32, s) = Bits.shiftL b s
 
-valueOf :: UtxoLookup m => UTXO.TxIn' -> m Value
+valueOf :: ValidationMonad m => UTXO.TxIn' -> m Value
 valueOf = fmap fromIntegral . UTXO.lkpValue . UTXO.txInRef

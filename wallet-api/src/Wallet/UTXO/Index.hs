@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
 -- | An index of unspent transaction outputs, and some functions for validating
 --   transactions using the UTXO index.
 module Wallet.UTXO.Index(
@@ -17,11 +18,13 @@ module Wallet.UTXO.Index(
     validateTransaction,
     lkpValue,
     lkpSigs,
-    lkpTxOut
+    lkpTxOut,
+    lkpOutputs
     ) where
 
 import           Control.Monad.Except (MonadError (..), liftEither)
 import           Control.Monad.Reader (MonadReader (..), ReaderT (..), ask)
+import           Crypto.Hash          (Digest, SHA256)
 import           Data.Foldable        (foldl', traverse_)
 import qualified Data.Map             as Map
 import           Data.Semigroup       (Semigroup, Sum (..))
@@ -29,8 +32,7 @@ import qualified Data.Set             as Set
 import           GHC.Generics         (Generic)
 import           Prelude              hiding (lookup)
 import           Wallet.UTXO.Types    (Blockchain, DataScript, PubKey, Signature, Tx (..), TxIn (..), TxIn', TxOut (..),
-                                       TxOut', TxOutRef', ValidationData, Value, updateUtxo,
-                                       validValuesTx)
+                                       TxOut', TxOutRef', ValidationData, Value, updateUtxo, validValuesTx)
 import qualified Wallet.UTXO.Types    as UTXO
 
 -- | Context for validating transactions. We need access to the unspent
@@ -77,7 +79,7 @@ data ValidationError =
     | NegativeValue Tx
     -- ^ The transaction produces an output with a negative value
     | ScriptFailure
-    -- ^ Evaluation of the validator script failed
+    -- ^ (for pay-to-script outputs) Evaluation of the validator script failed
     deriving (Eq, Show, Generic)
 
 newtype Validation a = Validation { _runValidation :: (ReaderT UtxoIndex (Either ValidationError)) a }
@@ -123,26 +125,50 @@ validateTransaction v t =
 checkValidInputs :: ValidationMonad m => ValidationData -> Tx -> m ()
 checkValidInputs v = traverse_ (checkValidInput v) . Set.toList . txInputs
 
+-- | Match each input of the transaction with its output
+lkpOutputs :: ValidationMonad m => Tx -> m [(TxIn', TxOut')]
+lkpOutputs = traverse (\t -> traverse (lkpTxOut . txInRef) (t, t)) . Set.toList . txInputs
+
+-- | Matchin pair of transaction input and transaction output.
+data InOutMatch =
+    ScriptMatch UTXO.Validator UTXO.Redeemer DataScript Value (UTXO.Address (Digest SHA256))
+    | PubKeyMatch PubKey Signature
+
+-- | Match a transaction input with the output that it consumes, ensuring that
+--   both are of the same type (pubkey or pay-to-script)
+matchInputOutput :: ValidationMonad m => TxIn' -> TxOut' -> m InOutMatch
+matchInputOutput i txo = case (txInType i, txOutType txo) of
+    (UTXO.ConsumeScriptAddress v r, UTXO.PayToScript d) ->
+        pure $ ScriptMatch v r d (txOutValue txo) (txOutAddress txo)
+    (UTXO.ConsumePublicKeyAddress sig, UTXO.PayToPubKey pk) ->
+        pure $ PubKeyMatch pk sig
+    _ -> throwError $ InOutTypeMismatch i txo
+
 -- | Validate a single transaction input
 checkValidInput :: ValidationMonad m => ValidationData -> TxIn' -> m ()
-checkValidInput v i = (lkpTxOut $ txInRef i) >>= checkInputOutput v i
+checkValidInput v i = 
+    (lkpTxOut $ txInRef i) 
+        >>= matchInputOutput i 
+            >>= checkMatch v
 
--- | Check that a transaction output can be spent by a transaction input
-checkInputOutput :: ValidationMonad m => ValidationData -> TxIn' -> TxOut' -> m ()
-checkInputOutput bs i txo =
-    case (txInType i, txOutType txo) of
-        (UTXO.ConsumeScriptAddress v r, UTXO.PayToScript d)
-            | txOutAddress txo /= UTXO.scriptAddress (txOutValue txo) v d ->
+-- | Check that a matching pair of transaction input and transaction output is 
+--   valid. If this is a pay-to-script output then the script hash needs to be
+--   correct and script evaluation has to terminate successfully. If this is a
+--   pay-to-pubkey output then the signature needs to match the public key that
+--   locks it.
+checkMatch :: ValidationMonad m => ValidationData -> InOutMatch -> m ()
+checkMatch bs = \case
+    ScriptMatch vl r d vv a
+        | a /= UTXO.scriptAddress vv vl d ->
                 throwError $ InvalidScriptHash d
-            | otherwise ->
-                if UTXO.runScript bs v r d
-                then pure ()
-                else throwError ScriptFailure
-        (UTXO.ConsumePublicKeyAddress sig, UTXO.PayToPubKey pk) ->
-            if sig `UTXO.signedBy` pk
+        | otherwise ->
+            if UTXO.runScript bs vl r d
             then pure ()
-            else throwError $ InvalidSignature pk sig
-        _ -> throwError $ InOutTypeMismatch i txo
+            else throwError ScriptFailure
+    PubKeyMatch pk sig ->
+        if sig `UTXO.signedBy` pk
+        then pure ()
+        else throwError $ InvalidSignature pk sig
 
 -- | Check if the value produced by a transaction equals the value consumed by
 --   it.
