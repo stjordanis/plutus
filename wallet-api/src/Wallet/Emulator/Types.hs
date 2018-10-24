@@ -74,7 +74,7 @@ import           Wallet.API                (KeyPair (..), WalletAPI (..), Wallet
                                             signature)
 import           Wallet.UTXO               (Block, Blockchain, Height, Tx (..), TxIn (..), TxOut (..), TxOutRef (..),
                                             TxOutRef', ValidationData, Value, hashTx, pubKeyTxIn, pubKeyTxOut,
-                                            txOutPubKey, unitValidationData)
+                                            txOutPubKey, unitValidationData, height)
 import qualified Wallet.UTXO.Index         as Index
 
 -- agents/wallets
@@ -269,8 +269,9 @@ type MonadEmulator m = (MonadState EmulatorState m, MonadError AssertionError m)
 
 -- | Validate a transaction in the current emulator state
 validateEm :: EmulatorState -> Tx -> Maybe Tx
-validateEm EmulatorState{emIndex=idx, emValidationData = vd} txn =
-    let result = Index.runValidation (Index.validateTransaction vd txn) idx in
+validateEm EmulatorState{emIndex=idx, emValidationData = vd, emChain = ch} txn =
+    let h = height ch
+        result = Index.runValidation (Index.validateTransaction vd h txn) idx in
     either (const Nothing) (const $ Just txn) result
 
 liftEmulatedWallet :: (MonadState EmulatorState m) => Wallet -> EmulatedWalletApi a -> m ([Tx], Either WalletAPIError a)
