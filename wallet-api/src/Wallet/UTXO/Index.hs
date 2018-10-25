@@ -28,16 +28,10 @@ module Wallet.UTXO.Index(
 import           Control.Monad.Except             (MonadError (..), liftEither)
 import           Control.Monad.Reader             (MonadReader (..), ReaderT (..), ask)
 import           Crypto.Hash                      (Digest, SHA256)
-import           Data.Bits                        ((.|.))
-import qualified Data.Bits                        as Bits
-import qualified Data.ByteArray                   as BA
 import           Data.Foldable                    (foldl', traverse_)
-import           Data.List                        (inits, tails)
 import qualified Data.Map                         as Map
-import           Data.Memory.Endian               (LE (..), fromLE)
 import           Data.Semigroup                   (Semigroup, Sum (..))
 import qualified Data.Set                         as Set
-import           Data.Word                        (Word32)
 import           GHC.Generics                     (Generic)
 import           Language.Plutus.CoreToPLC.Plugin (lifted)
 import           Prelude                          hiding (lookup)
@@ -217,7 +211,7 @@ validationData h tx = rump <$> ins where
 mkOut :: TxOut' -> Runtime.PendingTxOut
 mkOut t = Runtime.PendingTxOut (fromIntegral $ txOutValue t) d tp where
     (d, tp) = case txOutType t of
-        UTXO.PayToScript _  ->
+        UTXO.PayToScript _ -> 
             let hash = 100 in -- FIXME: hash ds
                 (Just hash, Runtime.DataTxOut)
         UTXO.PayToPubKey pk -> (Nothing, Runtime.PubKeyTxOut pk)
@@ -230,7 +224,7 @@ mkIn i = Runtime.PendingTxIn <$> ref <*> pure red <*> vl where
         in
             Runtime.PendingTxOutRef hash idx <$> lkpSigs (UTXO.txInRef i)
     red = case txInType i of
-        UTXO.ConsumeScriptAddress v r  -> Just 100-- FIXME redeemer hash
+        UTXO.ConsumeScriptAddress _ _  -> Just 100-- FIXME redeemer hash, validator hash??
         UTXO.ConsumePublicKeyAddress _ -> Nothing
     vl = fromIntegral <$> valueOf i
 
@@ -242,25 +236,25 @@ mkIn i = Runtime.PendingTxIn <$> ref <*> pure red <*> vl where
 -- >>> rotate []
 -- >>> []
 --
-rotate :: [(a, b)] -> [((a, b), [b])]
-rotate t' = drop 1
-    $ (\(l, r) -> let lst = r ++ l in (head lst, snd <$> drop 1 lst))
-    <$> zip (inits t') (tails t')
+-- rotate :: [(a, b)] -> [((a, b), [b])]
+-- rotate t' = drop 1
+--     $ (\(l, r) -> let lst = r ++ l in (head lst, snd <$> drop 1 lst))
+--     <$> zip (inits t') (tails t')
 
-assocr :: ((a, b), c) -> (a, (b, c))
-assocr ((a, b), c) = (a, (b, c))
+-- assocr :: ((a, b), c) -> (a, (b, c))
+-- assocr ((a, b), c) = (a, (b, c))
 
--- | The PLC representation of a `UTXO.TxId'`.
---
---   To get an [[Int]] from the [[Digest SHA256]] we simply take the first four
---   bytes of the hash.
-mkHash :: UTXO.TxId' -> Runtime.Hash
-mkHash (UTXO.TxId h) = fromIntegral $ fromLE (LE w) where
-    w = foldl' (.|.) 0 bs'
-    bytes = BA.unpack $ BA.takeView h 4
-    bs' = fmap shiftWord (zip (fromIntegral <$> bytes) [0,8..])
+-- -- | The PLC representation of a `UTXO.TxId'`.
+-- --
+-- --   To get an [[Int]] from the [[Digest SHA256]] we simply take the first four
+-- --   bytes of the hash.
+-- mkHash :: UTXO.TxId' -> Runtime.Hash
+-- mkHash (UTXO.TxId h) = fromIntegral $ fromLE (LE w) where
+--     w = foldl' (.|.) 0 bs'
+--     bytes = BA.unpack $ BA.takeView h 4
+--     bs' = fmap shiftWord (zip (fromIntegral <$> bytes) [0,8..])
 
-    shiftWord (b :: Word32, s) = Bits.shiftL b s
+--     shiftWord (b :: Word32, s) = Bits.shiftL b s
 
 valueOf :: ValidationMonad m => UTXO.TxIn' -> m Value
 valueOf = lkpValue . txInRef

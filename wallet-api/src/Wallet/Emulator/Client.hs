@@ -14,7 +14,6 @@ module Wallet.Emulator.Client
   , blockValidated
   , blockHeight
   , blockchainActions
-  , setValidationData
   , assertOwnFundsEq
   , assertIsValidated
   ) where
@@ -27,7 +26,7 @@ import           Servant.Client        (ClientEnv, ClientM, ServantError, client
 import           Wallet.API            (KeyPair, WalletAPI (..))
 import           Wallet.Emulator.Http  (API)
 import           Wallet.Emulator.Types (Wallet)
-import           Wallet.UTXO           (Block, Height, Tx, TxIn', TxOut', ValidationData, Value)
+import           Wallet.UTXO           (Block, Height, Tx, TxIn', TxOut', Value)
 
 api :: Proxy API
 api = Proxy
@@ -41,12 +40,11 @@ payToPublicKey' :: Wallet -> Value -> ClientM TxOut'
 submitTxn' :: Wallet -> Tx -> ClientM ()
 getTransactions :: ClientM [Tx]
 blockchainActions :: ClientM [Tx]
-setValidationData :: ValidationData -> ClientM ()
 blockValidated :: Wallet -> Block -> ClientM ()
 blockHeight :: Wallet -> Height -> ClientM ()
 assertOwnFundsEq :: Wallet -> Value -> ClientM NoContent
 assertIsValidated :: Tx -> ClientM NoContent
-(wallets :<|> fetchWallet :<|> createWallet :<|> myKeyPair' :<|> createPaymentWithChange' :<|> payToPublicKey' :<|> submitTxn' :<|> getTransactions) :<|> (blockValidated :<|> blockHeight) :<|> (blockchainActions :<|> setValidationData) :<|> (assertOwnFundsEq :<|> assertIsValidated) =
+(wallets :<|> fetchWallet :<|> createWallet :<|> myKeyPair' :<|> createPaymentWithChange' :<|> payToPublicKey' :<|> submitTxn' :<|> getTransactions) :<|> (blockValidated :<|> blockHeight) :<|> blockchainActions  :<|> (assertOwnFundsEq :<|> assertIsValidated) =
   client api
 
 data Environment = Environment
