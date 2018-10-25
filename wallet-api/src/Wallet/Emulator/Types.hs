@@ -269,9 +269,9 @@ type MonadEmulator m = (MonadState EmulatorState m, MonadError AssertionError m)
 
 -- | Validate a transaction in the current emulator state
 validateEm :: EmulatorState -> Tx -> Maybe Tx
-validateEm EmulatorState{emIndex=idx, emValidationData = vd, emChain = ch} txn =
+validateEm EmulatorState{emIndex=idx, emChain = ch} txn =
     let h = height ch
-        result = Index.runValidation (Index.validateTransaction vd h txn) idx in
+        result = Index.runValidation (Index.validateTransaction h txn) idx in
     either (const Nothing) (const $ Just txn) result
 
 liftEmulatedWallet :: (MonadState EmulatorState m) => Wallet -> EmulatedWalletApi a -> m ([Tx], Either WalletAPIError a)

@@ -32,18 +32,18 @@ instance TypeablePlc PendingTxOutType
 instance LiftPlc PendingTxOutType
 
 -- | Output of a pending transaction.
-data PendingTxOut d = PendingTxOut {
+data PendingTxOut = PendingTxOut {
     pendingTxOutValue   :: Value,
-    pendingTxDataScript :: Maybe d, -- ^ Note: It would be better if the `DataTxOut` constructor of `PendingTxOutType` contained the `d` value (because the data script is always `Nothing` for a pub key output). However, this causes the core-to-plc converter to fail with a type error on a pattern match on `PubKeyTxOut`.
+    pendingTxDataScript :: Maybe Hash, 
     pendingTxOutData    :: PendingTxOutType
     } deriving Generic
 
-instance TypeablePlc d => TypeablePlc (PendingTxOut d)
-instance (TypeablePlc d, LiftPlc d) => LiftPlc (PendingTxOut d)
+instance TypeablePlc PendingTxOut
+instance LiftPlc PendingTxOut
 
 data PendingTxOutRef = PendingTxOutRef {
-    pendingTxOutRefId  :: Hash,
-    pendingTxOutRefIdx :: Int,
+    pendingTxOutRefId  :: Hash, -- ^ Transaction whose outputs are consumed
+    pendingTxOutRefIdx :: Int, -- ^ Index into the referenced transaction's list of outputs
     pendingTxOutSigs   :: [Signature]
     } deriving Generic
 
@@ -51,27 +51,27 @@ instance TypeablePlc PendingTxOutRef
 instance LiftPlc PendingTxOutRef
 
 -- | Input of a pending transaction.
-data PendingTxIn r = PendingTxIn {
+data PendingTxIn = PendingTxIn {
     pendingTxInRef         :: PendingTxOutRef,
-    pendingTxInRefRedeemer :: Maybe r -- ^ The redeemer of the pending transaction input (see note [Script types in pending transactions])
+    pendingTxInRefRedeemer :: Maybe Hash,
+    pendingTxInValue       :: Value -- ^ Value consumed by this txn input
     } deriving Generic
 
-instance TypeablePlc r => TypeablePlc (PendingTxIn r)
-instance (TypeablePlc r, LiftPlc r) => LiftPlc (PendingTxIn r)
+instance TypeablePlc PendingTxIn
+instance LiftPlc PendingTxIn
 
 -- | A pending transaction as seen by validator scripts.
-data PendingTx r d = PendingTx {
-    pendingTxCurrentInput :: (PendingTxIn r, Value), -- ^ The input we are validating
-    pendingTxOtherInputs  :: [(PendingTxIn r, Value)], -- ^ Other transaction inputs (they will be validated separately but we can look at their redeemer data and coin value)
-    pendingTxOutputs      :: [PendingTxOut d],
+data PendingTx = PendingTx {
+    pendingTxInputs  :: [PendingTxIn], -- ^ Transaction inputs
+    pendingTxOutputs      :: [PendingTxOut],
     pendingTxForge        :: Value,
     pendingTxFee          :: Value,
     pendingTxBlockHeight  :: Height,
     pendingTxSignatures   :: [Signature]
     } deriving Generic
 
-instance (TypeablePlc r, TypeablePlc d) => TypeablePlc (PendingTx r d)
-instance (TypeablePlc r, TypeablePlc d, LiftPlc r, LiftPlc d) => LiftPlc (PendingTx r d)
+instance TypeablePlc PendingTx
+instance LiftPlc PendingTx
 
 -- `OracleValue a` is the value observed at a time signed by
 -- an oracle.
@@ -92,7 +92,7 @@ instance (TypeablePlc a, LiftPlc a) => LiftPlc (Signed a)
 -- TODO: Use [[Wallet.UTXO.Types.Value]] when Integer is supported
 type Value = Int
 
-type Hash = Int
+type Hash = Int -- TODO: ByteString
 
 -- | Blockchain height
 --   TODO: Use [[Wallet.UTXO.Height]] when Integer is supported

@@ -39,8 +39,7 @@ import           Data.Semigroup                   (Semigroup, Sum (..))
 import qualified Data.Set                         as Set
 import           Data.Word                        (Word32)
 import           GHC.Generics                     (Generic)
-import           Language.Plutus.CoreToPLC.Plugin (PlcCode, lifted)
-import           Language.Plutus.Lift             (LiftPlc (..))
+import           Language.Plutus.CoreToPLC.Plugin (lifted)
 import           Prelude                          hiding (lookup)
 import           Wallet.UTXO.Runtime              (PendingTx (..))
 import qualified Wallet.UTXO.Runtime              as Runtime
@@ -127,20 +126,20 @@ lkpTxOut o = fst <$> lookupRef o
 --   it doesn't compute the UTXO of a blockchain from scratch.
 --   It also gives a more precise error: `ValidationError` instead of `False`.
 validateTransaction :: ValidationMonad m
-    => ValidationData
-    -> UTXO.Height
+    => UTXO.Height
     -> Tx
     -> m ()
-validateTransaction v h t =
-    checkValuePreserved t >> checkPositiveValues t >> checkValidInputs v h t
+validateTransaction h t =
+    checkValuePreserved t >> checkPositiveValues t >> checkValidInputs h t
 
 -- | Check if the inputs of the transaction consume outputs that
 --   (a) exist and
 --   (b) can be unlocked by the signatures or validator scripts of the inputs
-checkValidInputs :: ValidationMonad m => ValidationData -> UTXO.Height -> Tx -> m ()
-checkValidInputs v h tx = lkpOutputs tx
-    >>= traverse (uncurry matchInputOutput)
-    >>= traverse_ checkMatch . mkPending v h tx
+checkValidInputs :: ValidationMonad m => UTXO.Height -> Tx -> m ()
+checkValidInputs h tx = do
+    matches <- lkpOutputs tx >>= traverse (uncurry matchInputOutput)
+    vld     <- validationData h tx
+    traverse_ (checkMatch vld) matches
 
 -- | Match each input of the transaction with its output
 lkpOutputs :: ValidationMonad m => Tx -> m [(TxIn', TxOut')]
@@ -148,17 +147,17 @@ lkpOutputs = traverse (\t -> traverse (lkpTxOut . txInRef) (t, t)) . Set.toList 
 
 -- | Matching pair of transaction input and transaction output. The type
 --   parameter is to allow the validation data to be inserted.
-data InOutMatch a =
-    ScriptMatch UTXO.Validator UTXO.Redeemer DataScript Value (UTXO.Address (Digest SHA256)) a
+data InOutMatch =
+    ScriptMatch UTXO.Validator UTXO.Redeemer DataScript Value (UTXO.Address (Digest SHA256))
     | PubKeyMatch PubKey Signature
-    deriving (Eq, Ord, Show, Functor)
+    deriving (Eq, Ord, Show)
 
 -- | Match a transaction input with the output that it consumes, ensuring that
 --   both are of the same type (pubkey or pay-to-script)
-matchInputOutput :: ValidationMonad m => TxIn' -> TxOut' -> m (InOutMatch ())
+matchInputOutput :: ValidationMonad m => TxIn' -> TxOut' -> m InOutMatch
 matchInputOutput i txo = case (txInType i, txOutType txo) of
     (UTXO.ConsumeScriptAddress v r, UTXO.PayToScript d) ->
-        pure $ ScriptMatch v r d (txOutValue txo) (txOutAddress txo) ()
+        pure $ ScriptMatch v r d (txOutValue txo) (txOutAddress txo)
     (UTXO.ConsumePublicKeyAddress sig, UTXO.PayToPubKey pk) ->
         pure $ PubKeyMatch pk sig
     _ -> throwError $ InOutTypeMismatch i txo
@@ -168,13 +167,13 @@ matchInputOutput i txo = case (txInType i, txOutType txo) of
 --   correct and script evaluation has to terminate successfully. If this is a
 --   pay-to-pubkey output then the signature needs to match the public key that
 --   locks it.
-checkMatch :: ValidationMonad m => InOutMatch ValidationData -> m ()
-checkMatch = \case
-    ScriptMatch vl r d vv a bs
+checkMatch :: ValidationMonad m => ValidationData -> InOutMatch -> m ()
+checkMatch v = \case
+    ScriptMatch vl r d vv a
         | a /= UTXO.scriptAddress vv vl d ->
                 throwError $ InvalidScriptHash d
         | otherwise ->
-            if UTXO.runScript bs vl r d
+            if UTXO.runScript v vl r d
             then pure ()
             else throwError ScriptFailure
     PubKeyMatch pk sig ->
@@ -200,23 +199,14 @@ checkPositiveValues t =
     then pure ()
     else throwError $ NegativeValue t
 
--- | Turn a UTXO transaction with @n@ inputs into a list of @n@ pending
---   transactions. Each pending transaction has a different
---   `pendingTxCurrentIn`, and is paired with its validator script (if it
---   happens to be a scripted transaction input) or its signature (if it is
---   a pay-to-pub-key input)
-mkPending ::
-       ValidationData
-    -> UTXO.Height -- ^ Height of the blockchain
-    -> Tx -- ^ Transaction currently being validated
-    -> [InOutMatch ()]
-    -> [InOutMatch ValidationData]
-mkPending v h tx matches = fmap (fmap (const v)) matches where
-    pendingInputs = mkIn <$> matches
-    
-    rump (cur :: (Runtime.PendingTxIn PlcCode, Runtime.Value)) others = ValidationData $ lifted $ PendingTx {
-          pendingTxCurrentInput = cur
-        , pendingTxOtherInputs = others
+-- | Encode the current transaction and blockchain height
+--   in PLC.
+validationData :: ValidationMonad m => UTXO.Height -> Tx -> m ValidationData
+validationData h tx = rump <$> ins where
+    ins = traverse mkIn $ Set.toList $ txInputs tx
+
+    rump inputs = ValidationData $ lifted $ PendingTx
+        { pendingTxInputs = inputs
         , pendingTxOutputs = mkOut <$> txOutputs tx
         , pendingTxForge = fromIntegral $ txForge tx
         , pendingTxFee = fromIntegral $ txFee tx
@@ -224,45 +214,25 @@ mkPending v h tx matches = fmap (fmap (const v)) matches where
         , pendingTxSignatures = txSignatures tx
         }
 
-    mkOut (UTXO.TxOut _ v t') = Runtime.PendingTxOut v' d s where
-        v' = fromIntegral v
-        (d, s) = case t' of
-            UTXO.PayToPubKey k                   -> (Nothing, Runtime.PubKeyTxOut k)
-            UTXO.PayToScript (UTXO.DataScript c) -> (Just c,  Runtime.DataTxOut)
+mkOut :: TxOut' -> Runtime.PendingTxOut
+mkOut t = Runtime.PendingTxOut (fromIntegral $ txOutValue t) d tp where
+    (d, tp) = case txOutType t of
+        UTXO.PayToScript _  ->
+            let hash = 100 in -- FIXME: hash ds
+                (Just hash, Runtime.DataTxOut)
+        UTXO.PayToPubKey pk -> (Nothing, Runtime.PubKeyTxOut pk)
 
-    mkIn = \case
-        ScriptMatch vl r d vv a bs -> undefined
-
-
-
--- pendingScriptInputs :: (Applicative m, UtxoLookup m)
---     => UTXO.Height
---     -> UTXO.Tx
---     -> m [(ValidationData, Validator, DataScript)]
--- pendingScriptInputs h t = fmap _ . catMaybes . fmap (sequence . swap) <$> mkPending h t where
---     swap (a, b) = (b, a)
-
-
--- fmap (uncurry rump) <$> fmap rotate (traverse prepareInput inputs) where
---     inputs  = Set.toList txInputs
-
---     -- The pending transactions share most of their fields, the only
---     -- difference is in `pendingTxCurrentInput` and `pendingTxOtherInputs`.
---     rump (validator, cur) rst = (validator, PendingTx{..}) where
---         pendingTxCurrentInput = cur
---         pendingTxOtherInputs = rst
---         pendingTxOutputs = mkOut <$> txOutputs
---         pendingTxForge = fromIntegral txForge
---         pendingTxFee = fromIntegral txFee
---         pendingTxBlockHeight = fromIntegral h
---         pendingTxSignatures = txSignatures
-
---     mkOut (UTXO.TxOut _ v t') = PendingTxOut v' d s where
---         v' = fromIntegral v
---         (d, s) = case t' of
---             UTXO.PayToPubKey k -> (Nothing, PubKeyTxOut k)
---             UTXO.PayToScript (DataScript c) -> (Just c,  DataTxOut)
-
+mkIn :: ValidationMonad m => TxIn' -> m Runtime.PendingTxIn
+mkIn i = Runtime.PendingTxIn <$> ref <*> pure red <*> vl where
+    ref =
+        let hash = 100 -- FIXME hash
+            idx  = UTXO.txOutRefIdx $ UTXO.txInRef i
+        in
+            Runtime.PendingTxOutRef hash idx <$> lkpSigs (UTXO.txInRef i)
+    red = case txInType i of
+        UTXO.ConsumeScriptAddress v r  -> Just 100-- FIXME redeemer hash
+        UTXO.ConsumePublicKeyAddress _ -> Nothing
+    vl = fromIntegral <$> valueOf i
 
 -- | Given a list `l` of '(a,b)'s, `rotate l` pairs each `(a, b)` with the list
 --   of all other `b`s.
@@ -293,4 +263,4 @@ mkHash (UTXO.TxId h) = fromIntegral $ fromLE (LE w) where
     shiftWord (b :: Word32, s) = Bits.shiftL b s
 
 valueOf :: ValidationMonad m => UTXO.TxIn' -> m Value
-valueOf = fmap fromIntegral . lkpValue . txInRef
+valueOf = lkpValue . txInRef
