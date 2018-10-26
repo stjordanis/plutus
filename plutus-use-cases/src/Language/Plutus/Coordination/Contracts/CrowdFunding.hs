@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 {-# OPTIONS -fplugin=Language.Plutus.CoreToPLC.Plugin -fplugin-opt Language.Plutus.CoreToPLC.Plugin:dont-typecheck #-}
+{-# OPTIONS_GHC   -O0 #-}
 module Language.Plutus.Coordination.Contracts.CrowdFunding (
     -- * Campaign parameters
     Campaign(..)
@@ -114,29 +115,35 @@ contributionScript (CampaignPLC c)  = Validator val where
             PendingTx _ _ _ _ h _ = p
 
             isValid = case p of
-                PendingTx (pt1:pt2:_) _ _ _ _ _ -> -- the "successful campaign" branch
-                    let
-                        PendingTxIn _ _ v1 = pt1
-                        PendingTxIn _ _ v2 = pt2
-                        pledgedFunds = v1 + v2
+                PendingTx (ps::[PendingTxIn]) _ _ _ _ _ ->
+                    case ps of
+                        (pt1::PendingTxIn):(ps'::[PendingTxIn]) ->
+                            case ps' of
+                                (pt2::PendingTxIn):(_::[PendingTxIn]) ->
+                                    -- the "successful campaign" branch
+                                    let
+                                        PendingTxIn _ _ v1 = pt1
+                                        PendingTxIn _ _ v2 = pt2
+                                        pledgedFunds = v1 + v2
 
-                        payToOwner = h > campaignDeadline &&
-                                     h <= campaignCollectionDeadline &&
-                                     pledgedFunds >= campaignTarget &&
-                                     signedByT p campaignOwner
-                    in payToOwner
-                PendingTx (t:[]) _ _ _ _ _ -> -- the "refund" branch
-                    let
-                        -- Check that a refund transaction only spends the
-                        -- amount that was pledged by the contributor
-                        -- identified by `a :: CampaignActor`
-                        contributorOnly = signedBy t a
-                        refundable   = h > campaignCollectionDeadline &&
-                                       contributorOnly &&
-                                       signedByT p a
-                        -- In case of a refund, we can only collect the funds that
-                        -- were committed by this contributor
-                    in refundable
+                                        payToOwner = h > campaignDeadline &&
+                                                    h <= campaignCollectionDeadline &&
+                                                    pledgedFunds >= campaignTarget &&
+                                                    signedByT p campaignOwner
+                                    in payToOwner
+                                (_::[PendingTxIn]) -> -- the "refund" branch
+                                    let
+                                        -- Check that a refund transaction only spends the
+                                        -- amount that was pledged by the contributor
+                                        -- identified by `a :: CampaignActor`
+                                        contributorOnly = signedBy pt1 a
+                                        refundable   = h > campaignCollectionDeadline &&
+                                                                    contributorOnly &&
+                                                                    signedByT p a
+                                        -- In case of a refund, we can only collect the funds that
+                                        -- were committed by this contributor
+                                    in refundable
+                        (_::[PendingTxIn]) -> False
         in
         if isValid then () else Builtins.error ()) |])
 
