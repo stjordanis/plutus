@@ -125,6 +125,9 @@ import           Language.PlutusCore                      (applyProgram)
 import           Language.PlutusCore.Evaluation.CkMachine (runCk)
 import           Language.PlutusCore.Evaluation.Result
 
+import qualified Language.PlutusCore.Pretty as Pretty
+import qualified Debug.Trace as Trace
+
 {- Note [Serialisation and hashing]
 
 We use cryptonite for generating hashes, which requires us to serialise values
@@ -626,7 +629,8 @@ runScript (ValidationData (getAst -> valData)) (Validator (getAst -> validator))
     let
         applied = ((validator `applyProgram` redeemer) `applyProgram` dataScript) `applyProgram` valData
         -- TODO: do something with the error
-    in isJust $ evaluationResultToMaybe $ runCk applied
+        applied' = Trace.trace (Pretty.prettyPlcDefString applied) applied
+    in isJust $ evaluationResultToMaybe $ runCk applied'
         -- TODO: Enable type checking of the program
         -- void typecheck
 
