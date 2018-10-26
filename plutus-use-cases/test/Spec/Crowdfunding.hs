@@ -28,8 +28,6 @@ import qualified Language.Plutus.Runtime                             as Runtime
 import           Language.Plutus.TH                                  (plutus)
 import qualified Wallet.UTXO                                         as UTXO
 
-import           Spec.TH                                             (pendingTxCrowdfunding)
-
 tests :: TestTree
 tests = testGroup "crowdfunding" [
         testProperty "make a contribution" makeContribution,
@@ -84,13 +82,6 @@ successfulCampaign = checkCFTrace scenario1 $ do
     con2 <- contrib2 c 600
     con3 <- contrib3 c 800
     updateAll'
-    setValidationData $ ValidationData $(plutus [| let el = []::[Signature] in
-            $(pendingTxCrowdfunding)
-                11
-                (Signature 1:el)
-                (600, Signature 2 : el)
-                (Just (800, Signature 3 : el))
-            |])
     collect w1 c [(con2, w2, 600), (con3, w3, 800)]
     updateAll'
     traverse_ (uncurry assertOwnFundsEq) [(w2, startingBalance - 600), (w3, startingBalance - 800), (w1, 600 + 800)]
@@ -104,13 +95,6 @@ cantCollectEarly = checkCFTrace scenario1 $ do
     con2 <- contrib2 c 600
     con3 <- contrib3 c 800
     updateAll'
-    setValidationData $ ValidationData $(plutus [| let el = []::[Signature] in
-            $(pendingTxCrowdfunding)
-                8
-                el
-                (600, el)
-                (Just (800, el))
-            |])
     collect w1 c [(con2, w2, 600), (con3, w3, 800)]
     updateAll'
     traverse_ (uncurry assertOwnFundsEq) [(w2, startingBalance - 600), (w3, startingBalance - 800), (w1, 0)]
@@ -126,13 +110,6 @@ cantCollectLate = checkCFTrace scenario1 $ do
     con2 <- contrib2 c 600
     con3 <- contrib3 c 800
     updateAll'
-    setValidationData $ ValidationData $(plutus [| let el = []::[Signature] in
-            $(pendingTxCrowdfunding)
-                17
-                (Signature 1:el)
-                (600, el)
-                (Just (800, el))
-            |])
     collect w1 c [(con2, w2, 600), (con3, w3, 800)]
     updateAll'
     traverse_ (uncurry assertOwnFundsEq) [(w2, startingBalance - 600), (w3, startingBalance - 800), (w1, 0)]
@@ -147,22 +124,8 @@ canRefund = checkCFTrace scenario1 $ do
     con2 <- contrib2 c 600
     con3 <- contrib3 c 800
     updateAll'
-    setValidationData $ ValidationData $(plutus [| let el = []::[Signature] in
-            $(pendingTxCrowdfunding)
-                18
-                (Signature 2 : el)
-                (600, Signature 2 : el)
-                Nothing
-            |])
     walletAction w2 (refund c con2 600)
     updateAll'
-    setValidationData $ ValidationData $(plutus [| let el = []::[Signature] in
-            $(pendingTxCrowdfunding)
-                18
-                (Signature 3 : el)
-                (800, Signature 3 : el)
-                Nothing
-            |])
     walletAction w3 (refund c con3 800)
     updateAll'
     traverse_ (uncurry assertOwnFundsEq) [

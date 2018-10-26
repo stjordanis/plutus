@@ -19,7 +19,7 @@ module Language.Plutus.Coordination.Contracts.Vesting (
 import           Control.Monad.Error.Class          (MonadError (..))
 import qualified Data.Set                           as Set
 import qualified Language.Plutus.CoreToPLC.Builtins as Builtins
-import           Language.Plutus.Runtime            (Hash, Height, PendingTx (..), PendingTxIn (..), PendingTxOut (..),
+import           Language.Plutus.Runtime            (Hash, Height, PendingTx (..), PendingTxOut (..),
                                                      PendingTxOutType (..), PubKey (..), Value)
 import qualified Language.Plutus.Runtime.TH         as TH
 import           Language.Plutus.TH                 (PlcCode, applyPlc, plutus)
@@ -102,7 +102,7 @@ retrieveFunds vs vsPLC vd vdPLC r vnow = do
 validatorScript :: VestingPLC -> Validator
 validatorScript (VestingPLC v) = Validator val where
     val = applyPlc inner v
-    inner = $(plutus [| \Vesting{..} () VestingData{..} (p :: PendingTx () VestingData) ->
+    inner = $(plutus [| \Vesting{..} () VestingData{..} (p :: PendingTx) ->
         let
 
             eqPk :: PubKey -> PubKey -> Bool
@@ -112,7 +112,7 @@ validatorScript (VestingPLC v) = Validator val where
             (&&) :: Bool -> Bool -> Bool
             (&&) = $( TH.and )
 
-            PendingTx _ (_::[(PendingTxIn (), Value)]) os _ _ h _ = p
+            PendingTx _ os _ _ h _ = p
             VestingTranche d1 a1 = vestingTranche1
             VestingTranche d2 a2 = vestingTranche2
 
@@ -120,9 +120,9 @@ validatorScript (VestingPLC v) = Validator val where
             -- order (1 PubKey output, followed by 0 or 1 script outputs)
             amountSpent :: Value
             amountSpent = case os of
-                ((PendingTxOut v' _ (PubKeyTxOut pk))::PendingTxOut VestingData):(_::[PendingTxOut VestingData])
+                ((PendingTxOut v' _ (PubKeyTxOut pk))::PendingTxOut):(_::[PendingTxOut])
                     | pk `eqPk` vestingOwner -> v'
-                (_::[PendingTxOut VestingData]) -> Builtins.error ()
+                (_::[PendingTxOut]) -> Builtins.error ()
 
             -- Value that has been released so far under the scheme
             currentThreshold =
@@ -146,12 +146,10 @@ validatorScript (VestingPLC v) = Validator val where
             -- Check that the remaining output is locked by the same validation
             -- script
             txnOutputsValid = case os of
-                (_::PendingTxOut VestingData):(PendingTxOut v' (Just d') DataTxOut::PendingTxOut VestingData):(_::[PendingTxOut VestingData]) -> case d' of
-                    VestingData h' po ->
-                        h' == vestingDataHash
-                        && po == newAmount
-                        && v' == remainingAmount
-                (_::[PendingTxOut VestingData]) -> Builtins.error ()
+                (_::PendingTxOut):(PendingTxOut v' (Just d') DataTxOut::PendingTxOut):(_::[PendingTxOut]) -> 
+                    d' ==   let hash = 100 
+                            in hash -- FIXME
+                (_::[PendingTxOut]) -> Builtins.error ()
 
             isValid = amountsValid && txnOutputsValid
         in

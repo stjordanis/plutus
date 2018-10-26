@@ -27,7 +27,6 @@ import           Wallet.Emulator                                hiding (Value)
 import qualified Wallet.Generators                              as Gen
 import qualified Wallet.UTXO                                    as UTXO
 
-import           Spec.TH                                        (pendingTxVesting)
 
 tests :: TestTree
 tests = testGroup "vesting" [
@@ -60,7 +59,6 @@ canRetrieveFunds = checkVestingTrace scen1 $ do
     updateAll'
     ref <- commit w2 s splc total
     updateAll'
-    setValidationData $ ValidationData $(plutus [| $(pendingTxVesting) 11 150  |])
     let ds = DataScript $(plutus [|  VestingData 1123 150 |])
     -- Take 150 out of the scheme
     walletAction w1 $ void (retrieveFunds s splc (VestingData 1123 0) ds ref 150)
@@ -75,7 +73,6 @@ cannotRetrieveTooMuch = checkVestingTrace scen1 $ do
     ref <- commit w2 s splc total
     updateAll'
     -- at block height 11, not more than 200 may be taken out
-    setValidationData $ ValidationData $(plutus [| $(pendingTxVesting) 11 250 |])
     let ds = DataScript $(plutus [|  VestingData 1123 250 |])
     walletAction w1 $ void (retrieveFunds s splc (VestingData 1123 0) ds ref 250)
     updateAll'
@@ -89,7 +86,6 @@ canRetrieveFundsAtEnd = checkVestingTrace scen1 $ do
     ref <- commit w2 s splc total
     updateAll'
     -- everything can be taken out at h=21
-    setValidationData $ ValidationData $(plutus [| $(pendingTxVesting) 21 600 |])
     let ds = DataScript $(plutus [|  VestingData 1123 600 |])
     walletAction w1 $ void (retrieveFunds s splc (VestingData 1123 0) ds ref 600)
     updateAll'

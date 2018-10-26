@@ -95,11 +95,11 @@ contributionScript (CampaignPLC c)  = Validator val where
 
     --   See note [Contracts and Validator Scripts] in
     --       Language.Plutus.Coordination.Contracts
-    inner = $(plutus [| (\Campaign{..} () (a :: CampaignActor) (p :: PendingTx () CampaignActor) ->
+    inner = $(plutus [| (\Campaign{..} () (a :: CampaignActor) (p :: PendingTx) ->
         let
             -- | Check that a transaction input is signed by the private key of the given
             --   public key.
-            signedBy :: PendingTxIn a -> CampaignActor -> Bool
+            signedBy :: PendingTxIn -> CampaignActor -> Bool
             signedBy = $(TH.txInSignedBy)
 
             infixr 3 &&
@@ -108,14 +108,16 @@ contributionScript (CampaignPLC c)  = Validator val where
 
             -- | Check that a pending transaction is signed by the private key
             --   of the given public key.
-            signedByT :: PendingTx a b -> CampaignActor -> Bool
+            signedByT :: PendingTx -> CampaignActor -> Bool
             signedByT = $(TH.txSignedBy)
 
-            PendingTx _ _ _ _ _ h _ = p
+            PendingTx _ _ _ _ h _ = p
 
             isValid = case p of
-                PendingTx (_, v1) ((_, v2):_) _ _ _ _ _ -> -- the "successful campaign" branch
+                PendingTx (pt1:pt2:_) _ _ _ _ _ -> -- the "successful campaign" branch
                     let
+                        PendingTxIn _ _ v1 = pt1
+                        PendingTxIn _ _ v2 = pt2
                         pledgedFunds = v1 + v2
 
                         payToOwner = h > campaignDeadline &&
@@ -123,7 +125,7 @@ contributionScript (CampaignPLC c)  = Validator val where
                                      pledgedFunds >= campaignTarget &&
                                      signedByT p campaignOwner
                     in payToOwner
-                PendingTx (t, _) [] _ _ _ _ _ -> -- the "refund" branch
+                PendingTx (t:[]) _ _ _ _ _ -> -- the "refund" branch
                     let
                         -- Check that a refund transaction only spends the
                         -- amount that was pledged by the contributor
