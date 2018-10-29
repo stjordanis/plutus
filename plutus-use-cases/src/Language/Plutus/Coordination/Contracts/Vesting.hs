@@ -1,6 +1,7 @@
 -- | Vesting scheme as a PLC contract
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TemplateHaskell   #-}
@@ -102,7 +103,7 @@ retrieveFunds vs vsPLC vd vdPLC r vnow = do
 validatorScript :: VestingPLC -> Validator
 validatorScript (VestingPLC v) = Validator val where
     val = applyPlc inner v
-    inner = $(plutus [| \Vesting{..} () VestingData{..} (p :: PendingTx) ->
+    inner = $(plutus [| \Vesting{..} () VestingData{vestingDataPaidOut} (p :: PendingTx) ->
         let
 
             eqPk :: PubKey -> PubKey -> Bool
@@ -136,7 +137,7 @@ validatorScript (VestingPLC v) = Validator val where
                 else 0
 
             newAmount = vestingDataPaidOut + amountSpent
-            remainingAmount = a1 + a2 - newAmount
+            -- remainingAmount = a1 + a2 - newAmount
 
             -- Verify that the amount taken out, plus the amount already taken
             -- out before, does not exceed the threshold that is currently
@@ -146,8 +147,8 @@ validatorScript (VestingPLC v) = Validator val where
             -- Check that the remaining output is locked by the same validation
             -- script
             txnOutputsValid = case os of
-                (_::PendingTxOut):(PendingTxOut v' (Just d') DataTxOut::PendingTxOut):(_::[PendingTxOut]) -> 
-                    d' ==   let hash = 100 
+                (_::PendingTxOut):(PendingTxOut _ (Just d') DataTxOut::PendingTxOut):(_::[PendingTxOut]) ->
+                    d' ==   let hash = 100
                             in hash -- FIXME
                 (_::[PendingTxOut]) -> Builtins.error ()
 
