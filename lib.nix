@@ -34,6 +34,7 @@ let
     "plutus-tx"
     "plutus-use-cases"
     "wallet-api"
+    "bazel-runfiles"
   ];
 
   plutusHaskellPkgList = lib.filter (v: v != "plutus-playground-client" && v != "plutus-server-invoker") plutusPkgList;
