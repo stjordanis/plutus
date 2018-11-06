@@ -29,6 +29,7 @@ tests = testGroup "plutus-th" <$> sequence [
     golden "simple" simple
     , golden "power" powerPlc
     , golden "and" andPlc
+    , golden "newtypes" getValPlc
   ]
 
 simple :: PlcCode
@@ -40,3 +41,6 @@ powerPlc = $(plutus [| $(power (4::Int)) |])
 
 andPlc :: PlcCode
 andPlc = $(plutus [| $(andTH) True False |])
+
+getValPlc :: PlcCode
+getValPlc = $(plutus [| $(getVal) (SomeData (OracleValue (Signed (PubKey 10, (3, 17 :: Int))))) |])

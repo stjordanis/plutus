@@ -17,3 +17,23 @@ power n =
 
 andTH :: Q Exp
 andTH = [|\(a :: Bool) -> \(b::Bool) -> if a then if b then True else False else False|]
+
+newtype PubKey = PubKey { getPubKey :: Int }
+type Height = Int
+type Value = Int
+newtype Signed a = Signed (PubKey, a)
+newtype OracleValue a = OracleValue (Signed (Height, a))
+
+data MyData = 
+    NoData
+    | SomeData (OracleValue Value)
+
+getVal :: Q Exp
+getVal = [|  
+        \(m :: MyData) ->
+            case m of
+                NoData -> 100
+                SomeData ov ->
+                    case ov of
+                        OracleValue (Signed (_, (_, a))) -> a  
+        |]
