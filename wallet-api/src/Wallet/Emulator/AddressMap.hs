@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies       #-}
 module Wallet.Emulator.AddressMap(
     AddressMap(..),
+    difference,
     addAddress,
     addAddresses,
     values,
@@ -82,6 +83,12 @@ addAddress :: Address' -> AddressMap -> AddressMap
 addAddress adr (AddressMap mp) = AddressMap $ Map.alter upd adr mp where
     upd :: Maybe (Map TxOutRef' Value) -> Maybe (Map TxOutRef' Value)
     upd = maybe (Just Map.empty) Just
+
+-- | `difference a b` is an [[AddressMap]] with the same addresses at `a`,
+--   but at each address, `b`s outputs for that address are removed.
+difference :: AddressMap -> AddressMap -> AddressMap
+difference (AddressMap l) (AddressMap r) = AddressMap l' where
+    l' = Map.mapWithKey (\addr mp -> Map.difference mp $ Map.findWithDefault Map.empty addr r) l
 
 -- | Add a list of [[Address']]es with no unspent outputs
 addAddresses :: [Address'] -> AddressMap -> AddressMap

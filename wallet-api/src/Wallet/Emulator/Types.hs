@@ -344,7 +344,7 @@ evalEmulated = \case
             emChain = newChain,
             emTxPool = [],
             emIndex = Index.insertBlock block (emIndex emState),
-            emLog   = Log.BlockAdd (height newChain) : events ++ emLog emState
+            emLog   = Log.BlockAdd (hashTx <$> block) : events ++ emLog emState
             }
         pure block
     Assertion a -> assert a

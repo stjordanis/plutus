@@ -12,6 +12,8 @@ module Wallet.UTXO.Index(
     insert,
     insertBlock,
     initialise,
+    deleteOutRefs,
+    outRefs,
     Validation,
     runValidation,
     lookupRef,
@@ -52,6 +54,15 @@ newtype UtxoIndex = UtxoIndex { getIndex :: Map.Map TxOutRef' (TxOut', [Signatur
 -- | An empty [[UtxoIndex]]
 empty :: UtxoIndex
 empty = UtxoIndex Map.empty
+
+-- | Delete some [[TxOutRef']]s from a [[UtxoIndex]]
+deleteOutRefs :: UtxoIndex -> Set.Set TxOutRef' -> UtxoIndex
+deleteOutRefs (UtxoIndex i) s =
+    UtxoIndex $ i `Map.difference` Map.fromSet (const ()) s
+
+-- | The set of all available [[TxOutRef']]s
+outRefs :: UtxoIndex -> Set.Set TxOutRef'
+outRefs = Map.keysSet . getIndex
 
 -- | Create an index of all transactions on the chain
 initialise :: Blockchain -> UtxoIndex
