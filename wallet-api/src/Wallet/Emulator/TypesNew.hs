@@ -1,13 +1,15 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeApplications       #-}
 module Wallet.Emulator.TypesNew where
 
 import           Control.Lens
-import           Control.Monad         ((>=>))
 import           Control.Monad.Reader  (MonadReader (..))
+import           Control.Monad.State   (MonadState (..))
 import           Control.Monad.Writer  (MonadWriter (..))
 import           Data.Map              (Map)
 import           Data.Maybe            (catMaybes)
@@ -16,53 +18,82 @@ import qualified Data.Set              as Set
 import qualified Data.Text             as Text
 
 import qualified Wallet.API            as API
-import           Wallet.Emulator.Types (Wallet, WalletState)
+import           Wallet.Emulator.Types (Wallet, WalletState, EmulatedWalletApi)
 import           Wallet.UTXO           (Height, Tx, TxOutRef')
 import           Wallet.UTXO.Index     (UtxoIndex, deleteOutRefs, outRefs)
 import qualified Wallet.UTXO.Index     as Index
 
 -- This is a proposal for splitting up the `EmulatorState` type and related
 -- functions in Wallet.Emulator.Types.
--- There are two main changes.
--- 1. The actions that modify the state produce events, which can be one of
---    three types (ChainEvent, EmulatorEvent, WalletEvent)
--- 2. The state of the global mockchain is represented by a `ChainState` type,
---    with a nice semigroup instance.
--- As a result we will be able to replace a lot the functions in
--- Wallet.Emulator.Types with ones that have more precise constraints, and we
--- can get a list of `MockchainEvent TxId'` to give back to the user at the end.
+--
+-- The underlying idea is that the emulator state is a made up of two 
+-- parts: A collection of wallets, each with their own `WalletState`,
+-- and a blockchain. The state of each part can be changed by events, and
+-- the parts interact by producing events that can be consumed on the other side
+-- Diagram:
+--
+--    /-----------> Submit transactions   -->\
+-- Wallets                              Blockchain
+--   \<------------ Notify of new blocks <---/
+--
+-- This is reflected in the signatures of `processMockchain` (which consumes a 
+-- `ChainEvent` and produces `WalletEvent`s) and `processWallet` (which 
+-- consumes a `WalletEvent` and produces `ChainEvent`s).
+-- 
+-- processWallet :: (
+--     AsEmulatorLog e Tx,
+--     AsChainEvent e Tx,
+--     MonadWriter [e] m,
+--     MonadState WalletState m)
+--     => WalletEvent EmulatedWalletApi Tx
+--     -> m ()
+-- 
+-- processMockchain :: (
+--     MonadState EmulatorState m,
+--     AsEmulatorLog e Tx,
+--     AsWalletEvent e n Tx,
+--     MonadReader ChainState m,
+--     MonadWriter [e] m)
+--     => ChainEvent Tx
+--     -> m ()
+--
+-- `EmulatorLog` is a third type of event that doesn't directly map to a state 
+-- change in either of the two parts. It conveys information that can be used
+-- for debugging purposes.
 
--- | Events that happen on the blockchain (global state)
-data ChainEvent a =
-    BlockAdded Height [a]
-    | TxValidated a
+
+data EmulatorLog a =
+    TxValidated a
     | TxValidationFailed a Index.ValidationError
+    | WalletLog Text.Text
+    | TriggerFired API.EventTrigger
     deriving Functor
+makeClassyPrisms ''EmulatorLog
 
+-- | Events that change the state of the blockchain (global state)
+data ChainEvent a =
+    SubmitTx a
+    -- ^ A new transaction is submitted to the pool of pending transactions
+    | ProcessPending
+    -- ^ Pending transactions are processed, resulting in a new block
+    deriving Functor
 makeClassyPrisms ''ChainEvent
 
--- | Events covering the interface between wallets and the chain
-data EmulatorEvent a =
-    TxnSubmitted a
-    | WalletNotified Wallet Height
+-- | Events that change the state of a wallet
+data WalletEvent n a = 
+    NotifyBlock [a]
+    | WalletAction (n ())
     deriving Functor
-
-makeClassyPrisms ''EmulatorEvent
-
--- | Events that are specific to a wallet
-data WalletEvent =
-    WalletLog Text.Text
-    | TriggerFired API.EventTrigger
 
 makeClassyPrisms ''WalletEvent
 
-data MockchainEvent h =
+data MockchainLog n h =
     ChainEventE (ChainEvent h)
-    | EmulatorEventE (EmulatorEvent h)
-    | WalletEventE Wallet WalletEvent
+    | EmulatorLogE (EmulatorLog h)
+    | WalletEventE Wallet (WalletEvent n h)
     deriving Functor
 
-makeClassyPrisms ''MockchainEvent
+makeClassyPrisms ''MockchainLog
 
 -- | A pair of consumed and produced transaction outputs (the latter
 --   represented by a [[UtxoIndex]], covering a range of blocks.
@@ -96,6 +127,15 @@ instance Monoid ChainState where
     mappend = (<>)
     mempty = ChainState mempty Index.empty mempty
 
+-- | A list of transactions that have been submitted to the chain
+--   and are yet to be validated
+newtype TxPool = TxPool [Tx]
+    deriving (Eq, Ord, Show, Semigroup)
+
+makePrisms ''TxPool
+
+type Mockchain = (TxPool, ChainState)
+
 fromTx :: Tx -> ChainState
 fromTx = undefined
 
@@ -103,30 +143,64 @@ fromBlock :: [Tx] -> ChainState
 fromBlock = set blocks 1 . foldMap fromTx
 
 validateTx :: (
-    AsChainEvent Tx e,
+    AsEmulatorLog e Tx,
     MonadReader ChainState m,
     MonadWriter [e] m)
     => Tx
     -> m (Maybe Tx)
-validateTx = undefined
-    -- TODO: Use Index to validate the txn
+validateTx txn = do
+    Sum height <- view blocks
+    idx <- view produced
+    case Index.runValidation (Index.validateTransaction height txn) idx of
+        Left e -> do
+            tell [review _TxValidationFailed (txn, e)]
+            pure Nothing
+        Right () -> do
+            tell [review _TxValidated txn]
+            pure (Just txn)
 
--- | Validate a block of transactions and append it to the
---   [[ChainState]], emitting log messages in the process
+-- | Validate a block of transactions, emitting log messages in the process
 validateBlock :: (
-    AsChainEvent Tx e,
+    AsEmulatorLog e Tx,
     MonadReader ChainState m,
-    MonadWriter [e] m,
-    MonadWriter ChainState m)
+    MonadWriter [e] m)
     => [Tx]
-    -> m ()
+    -> m [Tx]
 validateBlock =
-    traverse validateTx >=> tell . fromBlock . catMaybes
+    fmap catMaybes . traverse validateTx 
 
 data EmulatorState = EmulatorState {
-    _chain     :: ChainState,
-    _pendingTx :: [Tx],
+    _mockchain :: Mockchain,
     _wallets   :: Map Wallet WalletState
     }
 
 makeLenses ''EmulatorState
+
+processMockchain :: (
+    MonadState EmulatorState m,
+    AsEmulatorLog e Tx,
+    AsWalletEvent e n Tx,
+    MonadReader ChainState m,
+    MonadWriter [e] m)
+    => ChainEvent Tx
+    -> m ()
+processMockchain = \case
+    SubmitTx a ->
+        modifying (mockchain . _1 . _TxPool) (a :)
+    ProcessPending -> do
+        txPool <- use (mockchain . _1 . _TxPool)
+        newBlock <- validateBlock txPool
+        mockchain . _2 <>= fromBlock newBlock
+        mockchain . _1 . _TxPool .= []
+        tell [review _NotifyBlock newBlock]
+
+processWallet :: (
+    AsEmulatorLog e Tx,
+    AsChainEvent e Tx,
+    MonadWriter [e] m,
+    MonadState WalletState m)
+    => WalletEvent EmulatedWalletApi Tx
+    -> m ()
+processWallet = \case
+    NotifyBlock blck -> undefined
+

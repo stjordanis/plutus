@@ -362,7 +362,6 @@ validateBlock emState txns = (block, events) where
             Just err -> Log.TxnValidationFail (hashTx t) err
     events = mkEvent <$> processed
 
-
 processEmulated :: (MonadEmulator m) => Trace EmulatedWalletApi a -> m a
 processEmulated = interpretWithMonad evalEmulated
 
