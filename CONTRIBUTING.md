@@ -2,7 +2,7 @@
 
 An appropriate environment for developing a package can be entered using the `env` attribute of the package. For example:
 ```
-nix-shell default.nix -A language-plutus-core.env
+nix-shell default.nix -A localPackages.language-plutus-core.env
 ```
 
 There are also `shell.nix` files in the package subdirectories.
