@@ -116,7 +116,7 @@ data PendingTx a = PendingTx
     , pendingTxOwnHash     :: a -- ^ Hash of the validator script that is currently running
     } deriving (Functor, Generic)
 
-type PendingTx' = PendingTx ValidatorHash
+type PendingTx' = PendingTx (ValidatorHash, DataScriptHash, RedeemerHash)
 
 {- Note [Oracles]
 I'm not sure how oracles are going to work eventually, so I'm going to use this
@@ -229,9 +229,9 @@ plcDigest :: Digest SHA256 -> BSL.ByteString
 plcDigest = serialise
 
 -- | Check if a transaction was signed by a public key
-txSignedBy :: Q (TExp (PendingTx ValidatorHash -> PubKey -> Bool))
+txSignedBy :: Q (TExp (PendingTx' -> PubKey -> Bool))
 txSignedBy = [||
-    \(p :: PendingTx ValidatorHash) (PubKey k) ->
+    \(p :: PendingTx') (PubKey k) ->
         let
             PendingTx _ _ _ _ _ sigs _ = p
 
@@ -297,8 +297,6 @@ eqRedeemer = [|| \(RedeemerHash l) (RedeemerHash r) -> Builtins.equalsByteString
 -- | Equality of transactions
 eqTx :: Q (TExp (TxHash -> TxHash -> Bool))
 eqTx = [|| \(TxHash l) (TxHash r) -> Builtins.equalsByteString l r ||]
-    
-
 
 makeLift ''PendingTxOutType
 
