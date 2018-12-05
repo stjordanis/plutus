@@ -17,8 +17,8 @@ import qualified Language.PlutusTx.Prelude                         as TH
 import           Language.PlutusTx.Prelude                        (Ratio)
 import qualified Language.PlutusTx                                as PlutusTx
 import           Language.Haskell.TH                              (Q, TExp)
-import           Ledger                                           (Height(..), PubKey, Value(..))
-import           Ledger.Validation                                (PendingTx', PendingTx(..), PendingTxIn(..), PendingTxOut(..), OracleValue)
+import           Ledger                                           (Height(..), Value(..))
+import           Ledger.Validation                                (PendingTx', PendingTx(..), PendingTxOut(..))
 import qualified Ledger.Validation                                as TH
 
 import           Language.PlutusTx.Coordination.Contracts.Swap.TH0 as TH0
@@ -151,6 +151,7 @@ swapStep = [|| \swp p st action ->
                     (SwapMarginAccounts (Value fixedMargin) (Value floatingMargin))
 
             else $$(PlutusTx.traceH) "ChangeOwnerFloatingLeg invalid" ($$(PlutusTx.error) ())
+        NoAction -> $$(PlutusTx.traceH) "NoAction is not an action" ($$(PlutusTx.error) ())
                 
     ||]
 

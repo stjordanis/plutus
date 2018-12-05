@@ -11,9 +11,9 @@ module Language.PlutusTx.Coordination.Contracts.Swap(
 
 import qualified Language.PlutusTx          as PlutusTx
 import           Language.PlutusTx.Prelude  (Ratio)
-import           Ledger                     (ValidatorScript (..), Value(..), PubKey)
+import           Ledger                     (DataScript(..), ValidatorScript (..), Value(..), PubKey)
 import qualified Ledger                     as Ledger
-import           Wallet.API                 (WalletAPI(..), pubKey)
+import           Wallet.API                 (WalletAPI(..), pubKey, payToScript)
 
 import qualified Language.PlutusTx.Coordination.Contracts.Swap.TH0 as TH0
 import           Language.PlutusTx.Coordination.Contracts.Swap.TH0 (Role(..), Spread(..))
@@ -25,26 +25,43 @@ initialDataScript ::
     => SwapParams 
     -> Role 
     -> PubKey 
-    -> m (SwapState, SwapAction)
+    -> m DataScript
 initialDataScript SwapParams{..} role other = do
     own <- pubKey <$> myKeyPair
     let owners = case role of
             Fixed -> SwapOwners own other
             Floating -> SwapOwners other own
         margins = SwapMarginAccounts swapMarginPenalty swapMarginPenalty
-    pure (Ongoing owners margins, NoAction)
+        ds = DataScript $ Ledger.lifted (Ongoing owners margins, NoAction)
+    pure ds
 
 -- | Enter into an fx swap assuming the "fixed" role
 enterFixed :: 
-    WalletAPI m
+    (Monad m, WalletAPI m)
     => SwapParams 
-    -> SwapOwners 
+    -- ^ Parameters of the swap (can't be changed during the lifetime of the contract)
+    -> PubKey
+    -- ^ Counterparty (owner of the floating leg of the swap)
     -> m ()
-enterFixed = undefined
+enterFixed swp so = do
+    ds <- initialDataScript swp Fixed so
+    let addr = address swp
+    _ <- startWatching addr
+    _ <- payToScript addr (swapMarginPenalty swp) ds
+    pure ()
 
 -- | Enter into an fx swap assuming the "floating" role
-enterFloating :: (Applicative m, WalletAPI m) => SwapParams -> SwapOwners -> m ()
-enterFloating SwapParams{..} _ = pure ()
+enterFloating :: 
+    (Monad m, WalletAPI m) 
+    => SwapParams 
+    -> PubKey
+    -> m ()
+enterFloating swp so = do
+    ds <- initialDataScript swp Floating so
+    let addr = address swp
+    _ <- startWatching addr
+    _ <- payToScript addr (swapMarginPenalty swp) ds
+    pure ()
 
 -- | The current minimum margin
 currentMargin :: Role -> SwapParams -> (Ratio Int) -> Value
