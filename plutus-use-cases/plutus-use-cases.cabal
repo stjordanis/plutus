@@ -45,6 +45,7 @@ library
     Language.PlutusTx.Coordination.Contracts.Vesting
     Language.PlutusTx.Coordination.Contracts.Swap
     Language.PlutusTx.Coordination.Contracts.Swap.TH
+    Language.PlutusTx.Coordination.Contracts.Swap.TH0
     Language.PlutusTx.Coordination.StateMachine.TH
   ghc-options:
     -Wall -Wnoncanonical-monad-instances
