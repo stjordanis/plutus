@@ -9280,6 +9280,37 @@ description = "An enhanced core prelude; a common foundation for alternate prelu
 license = stdenv.lib.licenses.mit;
 
 }) {};
+"bazel-runfiles" = callPackage
+({
+  mkDerivation
+, base
+, directory
+, filepath
+, stdenv
+}:
+mkDerivation {
+
+pname = "bazel-runfiles";
+version = "0.7.0.1";
+sha256 = "4d217f74a7eee5dced014d74ac8a3be886d9d0c5ce8e556d8ef16535bde40a00";
+isLibrary = true;
+isExecutable = true;
+libraryHaskellDepends = [
+base
+directory
+filepath
+];
+executableHaskellDepends = [
+base
+filepath
+];
+doHaddock = false;
+doCheck = false;
+homepage = "https://github.com/tweag/rules_haskell#readme";
+description = "Locate Bazel runfiles location";
+license = stdenv.lib.licenses.asl20;
+
+}) {};
 "bbdb" = callPackage
 ({
   mkDerivation
@@ -55651,6 +55682,7 @@ license = stdenv.lib.licenses.bsd3;
   mkDerivation
 , algebraic-graphs
 , base
+, bazel-runfiles
 , containers
 , language-plutus-core
 , lens
@@ -55683,6 +55715,7 @@ transformers
 ];
 testHaskellDepends = [
 base
+bazel-runfiles
 language-plutus-core
 mmorph
 mtl
@@ -55950,7 +55983,64 @@ license = stdenv.lib.licenses.bsd3;
 ({
   mkDerivation
 , base
+, bazel-runfiles
 , bytestring
+<<<<<<< HEAD
+=======
+, doctest
+, filepath
+, language-plutus-core
+, markdown-unlit
+, mtl
+, plutus-core-interpreter
+, plutus-ir
+, plutus-tx-plugin
+, prettyprinter
+, stdenv
+, tasty
+, template-haskell
+}:
+mkDerivation {
+
+pname = "plutus-tx";
+version = "0.1.0.0";
+src = .././plutus-tx;
+libraryHaskellDepends = [
+base
+bytestring
+language-plutus-core
+plutus-core-interpreter
+plutus-tx-plugin
+template-haskell
+];
+testHaskellDepends = [
+base
+bazel-runfiles
+doctest
+filepath
+language-plutus-core
+mtl
+plutus-ir
+plutus-tx-plugin
+prettyprinter
+tasty
+template-haskell
+];
+testToolDepends = [
+markdown-unlit
+];
+doHaddock = false;
+description = "The PlutusTx compiler frontend";
+license = stdenv.lib.licenses.bsd3;
+
+}) {};
+"plutus-tx-plugin" = callPackage
+({
+  mkDerivation
+, base
+, bytestring
+, cborg
+>>>>>>> most of latest master building with bazel
 , containers
 , doctest
 , ghc
