@@ -104,6 +104,7 @@ haskell_library(
         "stdlib/**/*.hs",
         "generators/**/*.hs",
         "common/**/*.hs",
+        "examples/**/*.hs",
     ]) + [
         "src/Language/PlutusCore/Parser.hs",
         "src/Language/PlutusCore/Lexer.hs",

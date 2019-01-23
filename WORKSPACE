@@ -68,12 +68,14 @@ nixpkgs_package(
           };
           requiredOverlay = <requiredOverlay>;
         };
+        packageInputs = map localLib.pkgs.haskell.lib.getBuildInputs (localLib.pkgs.lib.attrValues (localLib.pkgs.lib.filterAttrs (n: v: localLib.isPlutus n) haskellPackages));
+        # packageInputs = map localLib.pkgs.haskell.lib.getBuildInputs [
+        #   haskellPackages.plutus-playground-server
+        #   haskellPackages.wallet-api
+        # ];
+        haskellInputs = localLib.pkgs.lib.concatMap (p: p.haskellBuildInputs) packageInputs;
       in
-        {ghc = haskellPackages.ghcWithPackages (ps: [
-          haskellPackages.plutus-playground-server
-          haskellPackages.plutus-playground-lib
-          haskellPackages.plutus-use-cases
-        ]);}
+        {ghc = haskellPackages.ghcWithPackages (ps: haskellInputs);}
       """,
     nix_file_deps = [
         "@//:lib.nix",

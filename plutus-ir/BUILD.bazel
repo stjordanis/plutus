@@ -19,15 +19,13 @@ haskell_packages = [
 ]
 
 test_packages = [
-    "base",
-    "bytestring",
-    "mtl",
+    "bazel-runfiles",
     "mmorph",
-    "text",
+    "mtl",
     "prettyprinter",
+    "serialise",
     "tasty",
-    "tasty-hunit",
-    "tasty-golden",
+    "base",
 ]
 
 [
@@ -71,7 +69,6 @@ haskell_test(
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
         "//language-plutus-core:language-plutus-core",
-        "//runfiles:runfiles",
         ":plutus-ir",
     ],
 )

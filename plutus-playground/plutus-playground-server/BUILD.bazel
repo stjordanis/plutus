@@ -45,15 +45,34 @@ haskell_packages = [
 ]
 
 test_packages = [
+    "QuickCheck",
+    "aeson",
     "base",
     "bytestring",
+    "containers",
+    "data-default-class",
+    "file-embed",
+    "gitrev",
+    "hspec",
+    "http-media",
+    "http-types",
+    "insert-ordered-containers",
+    "monad-logger",
     "mtl",
-    "mmorph",
+    "network",
+    "purescript-bridge",
+    "servant",
+    "servant-foreign",
+    "servant-options",
+    "servant-server",
+    "swagger2",
     "text",
-    "prettyprinter",
-    "tasty",
-    "tasty-hunit",
-    "tasty-golden",
+    "transformers",
+    "unordered-containers",
+    "wai",
+    "wai-cors",
+    "wai-extra",
+    "warp",
 ]
 
 binary_packages = [
@@ -137,7 +156,7 @@ haskell_binary(
 )
 
 haskell_test(
-    name = "plutus-playground-lib-test",
+    name = "plutus-playground-server-test",
     srcs = glob([
         "test/**/*.hs",
     ]),
@@ -147,9 +166,9 @@ haskell_test(
     ]),
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
-        "//language-plutus-core:language-plutus-core",
-        "//runfiles:runfiles",
-        ":plutus-ir",
+        ":plutus-playground-server",
+        "//plutus-playground/plutus-playground-lib:plutus-playground-lib",
+        "//wallet-api:wallet-api",
     ],
 )
 

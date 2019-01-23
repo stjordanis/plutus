@@ -29,16 +29,16 @@ haskell_packages = [
 ]
 
 test_packages = [
+    "aeson",
     "base",
-    "bytestring",
-    "mtl",
-    "mmorph",
-    "text",
-    "prettyprinter",
+    "containers",
+    "hedgehog",
+    "swagger2",
     "tasty",
     "tasty-hunit",
-    "tasty-golden",
-    "bazel-runfiles",
+    "template-haskell",
+    "text",
+    "wallet-api",
 ]
 
 [
@@ -76,16 +76,15 @@ haskell_library(
 haskell_test(
     name = "plutus-playground-lib-test",
     srcs = glob([
-        "test/**/*.hs",
+        "tests/**/*.hs",
     ]),
     src_strip_prefix = "test",
     data = glob([
-      "test/**/*",
+      "tests/**/*",
     ]),
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
-        "//language-plutus-core:language-plutus-core",
-        ":plutus-ir",
+        ":plutus-playground-lib",
     ],
 )
 

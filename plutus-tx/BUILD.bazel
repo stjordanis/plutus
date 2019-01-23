@@ -13,9 +13,11 @@ haskell_packages = [
 
 test_packages = [
     "base",
-    "template-haskell",
-    "mtl",
+    "bazel-runfiles",
     "filepath",
+    "prettyprinter",
+    "mtl",
+    "template-haskell",
     "tasty",
 ]
 
@@ -63,7 +65,7 @@ haskell_test(
         "//language-plutus-core:language-plutus-core",
         "//plutus-core-interpreter:plutus-core-interpreter",
         "//plutus-tx-plugin:plutus-tx-plugin",
-        "//runfiles:runfiles",
+        "//plutus-ir:plutus-ir",
         ":plutus-tx",
     ],
 )

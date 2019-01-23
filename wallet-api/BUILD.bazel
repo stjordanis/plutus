@@ -47,7 +47,7 @@ test_packages = [
     "hedgehog",
     "tasty",
     "tasty-hedgehog",
-    "text",
+    "transformers",
     "lens",
 ]
 
