@@ -67,7 +67,6 @@ haskell_library(
     src_strip_prefix = "src",
     deps = [":" + name for name in haskell_packages] + [
         "//plutus-tx:plutus-tx",
-        "//plutus-tx-plugin:plutus-tx-plugin",
         "//plutus-use-cases:plutus-use-cases",
         "//wallet-api:wallet-api",
     ],

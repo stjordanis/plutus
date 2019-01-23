@@ -50,8 +50,8 @@ haskell_library(
     deps = [":" + name for name in haskell_packages] + [
         "//language-plutus-core:language-plutus-core",
         "//plutus-tx:plutus-tx",
+        "//plutus-tx:plutus-tx-compiler",
         "//wallet-api:wallet-api",
-        "//plutus-tx-plugin:plutus-tx-plugin",
     ],
     visibility = ["//visibility:public"],
 )
@@ -64,7 +64,6 @@ haskell_test(
     src_strip_prefix = "test",
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
-        "//plutus-tx-plugin:plutus-tx-plugin",
         "//plutus-tx:plutus-tx",
         "//wallet-api:wallet-api",
         ":plutus-use-cases",

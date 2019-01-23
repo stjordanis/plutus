@@ -11,9 +11,33 @@ haskell_packages = [
     "template-haskell",
 ]
 
+compiler_packages = [
+    "base",
+    "bytestring",
+    "containers",
+    "ghc",
+    "bazel-runfiles",
+    "filepath",
+    "lens",
+    "mtl",
+    "prettyprinter",
+    "serialise",
+    "template-haskell",
+    "th-abstraction",
+    "text",
+    "transformers",
+]
+
+tutorial_packages = [
+    "base",
+    "bytestring",
+    "template-haskell",
+]
+
 test_packages = [
     "base",
     "bazel-runfiles",
+    "bytestring",
     "filepath",
     "prettyprinter",
     "mtl",
@@ -23,8 +47,33 @@ test_packages = [
 
 [
     haskell_import(name = name)
-    for name in (list(depset(haskell_packages + test_packages)))
+    for name in (list(depset(compiler_packages + haskell_packages + test_packages + tutorial_packages)))
 ]
+
+haskell_library(
+    name = "plutus-tx-compiler",
+    srcs = glob([
+        "compiler/**/*.hs",
+        "compiler/**/*.hs-boot",
+    ]),
+    src_strip_prefix = "compiler",
+    compiler_flags = [
+        "-XExplicitForAll",
+        "-XScopedTypeVariables",
+        "-XDeriveGeneric",
+        "-XStandaloneDeriving",
+        "-XDeriveLift",
+        "-XGeneralizedNewtypeDeriving",
+        "-XDeriveFunctor",
+        "-XDeriveFoldable",
+        "-XDeriveTraversable",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [":" + name for name in compiler_packages] + [
+        "//language-plutus-core:language-plutus-core",
+        "//plutus-ir:plutus-ir",
+    ],
+)
 
 haskell_library(
     name = "plutus-tx",
@@ -47,14 +96,39 @@ haskell_library(
     deps = [":" + name for name in haskell_packages] + [
         "//language-plutus-core:language-plutus-core",
         "//plutus-core-interpreter:plutus-core-interpreter",
-        "//plutus-tx-plugin:plutus-tx-plugin",
+        ":plutus-tx-compiler",
     ],
 )
+
+# TODO: this is some sort of magic markdown thing
+# haskell_library(
+#     name = "plutus-tx-tutorial",
+#     srcs = glob([
+#         "tutorial/**/*.hs",
+#     ]),
+#     src_strip_prefix = "tutorial",
+#     compiler_flags = [
+#         "-XExplicitForAll",
+#         "-XScopedTypeVariables",
+#         "-XDeriveGeneric",
+#         "-XStandaloneDeriving",
+#         "-XDeriveLift",
+#         "-XGeneralizedNewtypeDeriving",
+#         "-XDeriveFunctor",
+#         "-XDeriveFoldable",
+#         "-XDeriveTraversable",
+#     ],
+#     visibility = ["//visibility:public"],
+#     deps = [":" + name for name in haskell_packages] + [
+#         "//language-plutus-core:language-plutus-core",
+#         ":plutus-tx",
+#     ],
+# )
 
 haskell_test(
     name = "plutus-tx-test",
     srcs = glob([
-        "test/*.hs",
+        "test/**/*.hs",
     ]),
     src_strip_prefix = "test",
     data = glob([
@@ -63,10 +137,9 @@ haskell_test(
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
         "//language-plutus-core:language-plutus-core",
-        "//plutus-core-interpreter:plutus-core-interpreter",
-        "//plutus-tx-plugin:plutus-tx-plugin",
         "//plutus-ir:plutus-ir",
         ":plutus-tx",
+        ":plutus-tx-compiler",
     ],
 )
 

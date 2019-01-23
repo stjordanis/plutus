@@ -55985,64 +55985,9 @@ license = stdenv.lib.licenses.bsd3;
 , base
 , bazel-runfiles
 , bytestring
-<<<<<<< HEAD
-=======
-, doctest
-, filepath
-, language-plutus-core
-, markdown-unlit
-, mtl
-, plutus-core-interpreter
-, plutus-ir
-, plutus-tx-plugin
-, prettyprinter
-, stdenv
-, tasty
-, template-haskell
-}:
-mkDerivation {
-
-pname = "plutus-tx";
-version = "0.1.0.0";
-src = .././plutus-tx;
-libraryHaskellDepends = [
-base
-bytestring
-language-plutus-core
-plutus-core-interpreter
-plutus-tx-plugin
-template-haskell
-];
-testHaskellDepends = [
-base
-bazel-runfiles
-doctest
-filepath
-language-plutus-core
-mtl
-plutus-ir
-plutus-tx-plugin
-prettyprinter
-tasty
-template-haskell
-];
-testToolDepends = [
-markdown-unlit
-];
-doHaddock = false;
-description = "The PlutusTx compiler frontend";
-license = stdenv.lib.licenses.bsd3;
-
-}) {};
-"plutus-tx-plugin" = callPackage
-({
-  mkDerivation
-, base
-, bytestring
-, cborg
->>>>>>> most of latest master building with bazel
 , containers
 , doctest
+, filepath
 , ghc
 , language-plutus-core
 , lens
@@ -56066,8 +56011,10 @@ version = "0.1.0.0";
 src = .././plutus-tx;
 libraryHaskellDepends = [
 base
+bazel-runfiles
 bytestring
 containers
+filepath
 ghc
 language-plutus-core
 lens

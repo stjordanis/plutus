@@ -4,6 +4,7 @@ load("@build_bazel_rules_nodejs//:defs.bzl", "nodejs_binary")
 generated_files = [
     "Ledger/Index.purs",
     "Ledger/Types.purs",
+    "Ledger/Interval.purs",
     "Playground/Usecases.purs",
     "Playground/API.purs",
     "Playground/Server.purs",

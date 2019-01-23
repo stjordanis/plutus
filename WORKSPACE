@@ -68,12 +68,11 @@ nixpkgs_package(
           };
           requiredOverlay = <requiredOverlay>;
         };
-        packageInputs = map localLib.pkgs.haskell.lib.getBuildInputs (localLib.pkgs.lib.attrValues (localLib.pkgs.lib.filterAttrs (n: v: localLib.isPlutus n) haskellPackages));
-        # packageInputs = map localLib.pkgs.haskell.lib.getBuildInputs [
-        #   haskellPackages.plutus-playground-server
-        #   haskellPackages.wallet-api
-        # ];
-        haskellInputs = localLib.pkgs.lib.concatMap (p: p.haskellBuildInputs) packageInputs;
+        selected = localLib.pkgs.lib.attrValues (localLib.pkgs.lib.filterAttrs (n: v: localLib.isPlutus n) haskellPackages);
+        packageInputs = map localLib.pkgs.haskell.lib.getBuildInputs selected;
+        haskellInputs = localLib.pkgs.lib.filter
+          (input: localLib.pkgs.lib.all (p: input.outPath != p.outPath) selected)
+          (localLib.pkgs.lib.concatMap (p: p.haskellBuildInputs) packageInputs);
       in
         {ghc = haskellPackages.ghcWithPackages (ps: haskellInputs);}
       """,
