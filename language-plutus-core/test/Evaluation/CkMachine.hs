@@ -18,10 +18,10 @@ import           Language.PlutusCore.StdLib.Meta
 import           Language.PlutusCore.StdLib.Meta.Data.Tuple
 import           Language.PlutusCore.StdLib.Type
 
-import           System.FilePath                            ((</>))
 import           Control.Monad.Except
 import qualified Data.ByteString.Lazy                       as BSL
 import           Data.Text.Encoding                         (encodeUtf8)
+import           System.FilePath                            ((</>))
 import           Test.Tasty
 import           Test.Tasty.Golden
 import           Test.Tasty.Hedgehog

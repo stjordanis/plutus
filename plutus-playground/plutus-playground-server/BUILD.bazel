@@ -15,6 +15,7 @@ haskell_packages = [
     "data-default-class",
     "directory",
     "exceptions",
+    "filepath",
     "file-embed",
     "gitrev",
     "hint",
@@ -132,12 +133,16 @@ haskell_library(
         "-XDeriveFunctor",
         "-XDeriveFoldable",
         "-XDeriveTraversable",
+        "-XTemplateHaskell",
+        "-XDataKinds",
     ],
     visibility = ["//visibility:public"],
     src_strip_prefix = "src",
     deps = [":" + name for name in haskell_packages] + [
         "//plutus-playground/plutus-playground-lib:plutus-playground-lib",
         "//wallet-api:wallet-api",
+        "//plutus-tx:plutus-tx",
+        "//plutus-tx:plutus-tx-compiler",
     ],
 )
 
@@ -163,7 +168,7 @@ haskell_test(
     src_strip_prefix = "test",
     data = glob([
       "test/**/*",
-    ]),
+    ]) + [":plutus-playground-server@runghc", ":plutus-playground-server"],
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [
         ":plutus-playground-server",
@@ -183,7 +188,11 @@ sh_test(
 sh_test(
     name = "stylish",
     srcs = ["@stylish-haskell//:bin/run.sh"],
-    args = ["plutus-ir"],
+    args = ["plutus-playground/plutus-playground-server"],
     deps = ["//:stylish_haskell_lib"],
     data = glob(["**/*.hs"], exclude = ["**/.stack-work/**"]),
 )
+
+# genrule(
+#   name = "interpreter-ghc",
+# )

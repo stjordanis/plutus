@@ -14,6 +14,7 @@ import           Data.ByteString            (ByteString)
 import qualified Data.ByteString.Char8      as BS8
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import           Data.List                  (intercalate)
+import           Data.Maybe                 (fromMaybe)
 import           Data.Swagger               (Schema)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
@@ -29,9 +30,10 @@ import           Playground.API             (CompilationResult (CompilationResul
 import           System.Directory           (removeFile)
 import           System.Environment         (lookupEnv)
 import           System.Exit                (ExitCode (ExitSuccess))
+import           System.FilePath            ((</>))
 import           System.IO                  (Handle, hClose, hFlush)
 import           System.IO.Temp             (getCanonicalTemporaryDirectory, openTempFile)
-import           System.Process             (readProcessWithExitCode)
+import           System.Process             (cwd, proc, readCreateProcessWithExitCode)
 import qualified Text.Regex                 as Regex
 import           Wallet.Emulator.Types      (EmulatorEvent, Wallet)
 
@@ -66,11 +68,13 @@ runscript ::
     -> FilePath
     -> Text
     -> m (ExitCode, String, String)
-runscript handle file script = do
-    liftIO . Text.hPutStr handle $ script
-    liftIO $ hFlush handle
-    runghc <- lookupRunghc
-    liftIO $ readProcessWithExitCode runghc (runghcOpts <> [file]) ""
+runscript handle file script = liftIO $ do
+    Text.hPutStr handle script
+    hFlush handle
+    workspace <- fromMaybe "" <$> lookupEnv "BUILD_WORKSPACE_DIRECTORY"
+    runghc <- lookupRunghc workspace
+    let cp = proc runghc (runghcOpts <> [file])
+    readCreateProcessWithExitCode (cp { cwd = Just workspace }) ""
 
 compile ::
        (MonadMask m, MonadIO m, MonadError PlaygroundError m)
@@ -155,12 +159,12 @@ runghcOpts =
     , "-O0"
     ]
 
-lookupRunghc :: (MonadIO m, MonadError PlaygroundError m) => m String
-lookupRunghc = do
-    mBinDir <- liftIO $ lookupEnv "GHC_BIN_DIR"
+lookupRunghc :: FilePath -> IO String
+lookupRunghc workspace = do
+    mBinDir <- lookupEnv "GHC_BIN_DIR"
     case mBinDir of
-        Nothing  -> pure "runghc"
-        Just val -> pure $ val <> "/runghc"
+        Nothing  -> pure $ workspace </> "bazel-out/darwin-fastbuild/bin/plutus-playground/plutus-playground-server/runghc-plutus-playground-server"
+        Just val -> pure $ val </> "runghc"
 
 -- ignoringIOErrors and withSystemTempFile are clones of the functions
 -- in System.IO.Temp however they are generalized over the monad

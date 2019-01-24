@@ -132,7 +132,7 @@ haskell_test(
     ]),
     src_strip_prefix = "test",
     data = glob([
-        "test/*.golden",
+        "test/**/*.golden",
     ]),
     visibility = ["//visibility:public"],
     deps = [":" + name for name in test_packages] + [

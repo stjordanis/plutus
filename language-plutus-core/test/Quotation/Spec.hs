@@ -9,9 +9,9 @@ import           Language.PlutusCore.Pretty
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Text.Encoding         (encodeUtf8)
 
+import           System.FilePath            ((</>))
 import           Test.Tasty
 import           Test.Tasty.Golden
-import           System.FilePath            ((</>))
 
 tests :: FilePath -> TestTree
 tests testDir = testGroup "quasiquoter" [
