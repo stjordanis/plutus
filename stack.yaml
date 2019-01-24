@@ -2,6 +2,7 @@ resolver: lts-12.14
 
 packages:
 - language-plutus-core
+- marlowe
 - plutus-core-interpreter
 - plutus-exe
 - plutus-ir

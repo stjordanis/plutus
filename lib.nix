@@ -34,6 +34,7 @@ let
     "plutus-tx"
     "plutus-tx-plugin"
     "plutus-use-cases"
+    "marlowe"
     "wallet-api"
   ];
 
