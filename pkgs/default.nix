@@ -77969,11 +77969,13 @@ license = stdenv.lib.licenses.mit;
 , containers
 , cryptonite
 , deriving-compat
+, doctest
 , hashable
 , hedgehog
 , http-media
 , language-plutus-core
 , lens
+, markdown-unlit
 , memory
 , mtl
 , natural-transformation
@@ -78032,6 +78034,10 @@ swagger2
 template-haskell
 text
 transformers
+];
+libraryToolDepends = [
+doctest
+markdown-unlit
 ];
 executableHaskellDepends = [
 base
