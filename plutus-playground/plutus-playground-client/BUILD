@@ -1,5 +1,6 @@
-load("@bazel_rules_purescript//purescript:purescript.bzl", "purescript_bundle", "purescript_library")
+load("@bazel_rules_purescript//purescript:purescript.bzl", "purescript_bundle", "purescript_library", "purescript_test")
 load("@build_bazel_rules_nodejs//:defs.bzl", "nodejs_binary")
+package(default_visibility = ["//visibility:public"])
 
 generated_files = [
     "Ledger/Index.purs",
@@ -51,6 +52,19 @@ purescript_bundle(
     node_modules = "@npm//:node_modules",
     webpack = "@npm//webpack-cli/bin:webpack-cli",
     deps = [":playground_purs"],
+)
+
+purescript_test(
+    name = "playground_test",
+    srcs = glob(["test/**/*.purs"]) + glob(["test/**/*.js"]) + glob(["test/**/*.json"]),
+    runtime_deps = ["@npm//ace-builds", "@npm//echarts"],
+    main_module = "test/Test/Main.purs",
+    deps = [
+      "@purescript-test-unit//:pkg",
+      "@purescript-node-fs//:pkg",
+      ":playground_purs"
+      ],
+    node = "@nodejs//:node",
 )
 
 # nodejs_binary(

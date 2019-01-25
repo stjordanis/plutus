@@ -192,7 +192,3 @@ sh_test(
     deps = ["//:stylish_haskell_lib"],
     data = glob(["**/*.hs"], exclude = ["**/.stack-work/**"]),
 )
-
-# genrule(
-#   name = "interpreter-ghc",
-# )
